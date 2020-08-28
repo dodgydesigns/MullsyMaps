@@ -1,0 +1,17 @@
+# compiled python
+*.pyc
+
+# visual studio
+*.suo
+
+# distribution files
+dist/*
+
+# log files
+logs/*
+
+# screenshots
+screenshots/*
+
+# code coverage report
+.coverage

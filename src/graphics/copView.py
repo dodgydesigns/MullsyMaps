@@ -207,9 +207,18 @@ class COPView(QWidget):
         rightMenuLayout.setAlignment(Qt.AlignRight)
         rightMenuWidget.setLayout(rightMenuLayout)
 
-        self.locationLabel = QLabel('LAT: {} LONG: {}   BEARING: {}   RANGE: {}'.format('0', '0', '44°', '14KY'))
-        self.locationLabel.setStyleSheet('.QLabel {padding-right: 20px;}')
-        rightMenuLayout.addWidget(self.locationLabel)
+        self.latLonLabel = QLabel('Welcome')
+        self.latLonLabel.setFixedWidth(130)
+        self.latLonLabel.setStyleSheet('.QLabel {padding-right: 20px;}')
+        self.bearingLabel = QLabel('to')
+        self.bearingLabel.setFixedWidth(110)
+        self.bearingLabel.setStyleSheet('.QLabel {padding-right: 20px;}')
+        self.distanceLabel = QLabel('MullsyMaps')
+        self.distanceLabel.setFixedWidth(200)
+        self.distanceLabel.setStyleSheet('.QLabel {padding-right: 20px;}')
+        rightMenuLayout.addWidget(self.latLonLabel)
+        rightMenuLayout.addWidget(self.bearingLabel)
+        rightMenuLayout.addWidget(self.distanceLabel)
         
         messagePanelWidget = QWidget()
         self.messagePanelLayout = QHBoxLayout()
@@ -483,36 +492,39 @@ class COPView(QWidget):
     def zoomOwnship(self):
         ''' Move to centre of ownship and zoom in. '''
         self.view.zoomOwnship()
-        
+
     def updateLocationLabel(self, mouseLat, mouseLon, bearing, distance):
-        '''
+        """
         Label at the top right of the COP shows lat/lon x/y etc. of the cursor.
-        '''
+        """
         mouse = self.view.mapController.toCanvasCoordinates(mouseLat, mouseLon)
 
         if mouseLat < 0:
             xText = '{0:.2f}°S'.format(-mouseLat)
         else:
             xText = '{0:.2f}°N'.format(mouseLat)
-            
+
         if mouseLon > 180:
             yText = '{0:.2f}°W'.format(mouseLon)
         else:
             yText = '{0:.2f}°E'.format(mouseLon)
 
-        distance /= 0.9144 # convert to yards
         if bearing >= 0:
-            bearingText = 'ZOOM: {:.1f}   '.format(self.view.vectorZoom) + \
-                          '{}, {}'.format(xText, yText) + \
-                          '<font color="#00FF00">   Bearing: {:3.1f}°</font> Range: {:.0f}yd Coords: '.format(bearing, distance) + \
-                          '{:.2f},{:.2f}'.format(mouse.x(), mouse.y())
+            bearingText = '<font color="#00FF00">   Bearing: {:3.1f}°</font>'.format(bearing)
         else:
-            bearingText = 'ZOOM: {:.1f}   '.format(self.view.vectorZoom) + \
-                          '{}, {}'.format(xText, yText) + \
-                          '<font color="#FF0000">   Bearing: {:3.1f}°</font> Range: {:.0f}yd Coords: '.format(abs(bearing), distance) + \
-                          '{:.2f},{:.2f}'.format(mouse.x(), mouse.y())
-       
-        self.locationLabel.setText(bearingText)
+            bearingText = '<font color="#FF0000">   Bearing: {:3.1f}°</font>'.format(abs(bearing))
+
+        # TODO: make this available
+        # distance /= 0.9144 # convert to yards
+        if distance >= 1000:
+            distanceText = 'Distance: {:.2f}{}s'.format(distance / 1000, preferences.DISTANCE_UNITS_HIGH)
+        else:
+            distanceText = 'Distance: {:.0f}{}'.format(distance, preferences.DISTANCE_UNITS_LOW)
+
+        # self.latLonLabel.setText('{}, {}'.format(xText, yText))
+        # self.bearingLabel.setText(bearingText)
+        # self.distanceLabel.setText(distanceText)
+        # self.locationLabel.setText(bearingText)
         
     def showHideToolBox(self):
         ''' Show/hide menu. '''

@@ -39,15 +39,16 @@ def buildFont(preferences):
     font.setUnderline(preferences['underline'])
     return font
 
+
 class AnnotationTools(QWidget):
-    ''' All the buttons for the annotation tool box. '''
+    """ All the buttons for the annotation tool box. """
     def __init__(self, tabBox, canvas):
         super(AnnotationTools, self).__init__()
         self.tabBox = tabBox
         self.canvas = canvas
         
     def buttonClicked(self, button):
-        ''' Just to highlight the current button and make things look pretty. '''
+        """ Just to highlight the current button and make things look pretty. """
         button.setStyleSheet('''QPushButton {background: white;}
                             ''')
         for b in self.modeButtonGroup.buttons():
@@ -283,7 +284,7 @@ class AnnotationTools(QWidget):
         self.tabBox.createNewAnnotationLayer()
         
 class AnnotationCanvas(QLabel):
-    ''' A QLabel with a QPixmap that holds all the drawing for a layer. '''
+    """ A QLabel with a QPixmap that holds all the drawing for a layer. """
 
     primaryColourUpdated = Signal(str)
     secondaryColourUpdated = Signal(str)
@@ -381,7 +382,7 @@ class AnnotationCanvas(QLabel):
         self.toolsConfig.currentDrawingTool = mode
         
     def disableAnnotations(self):
-        ''' Stop drawing. '''
+        """ Stop drawing. """
         self.setMode('')
         
     def resetMode(self):
@@ -466,7 +467,7 @@ class AnnotationCanvas(QLabel):
         if self.lastPos and self.view.currentlyDrawing:
             p = QPainter(self.pixmap())
             p.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
-            p.setPen(QPen(self.activeColour, self.config['size'], Qt.SolidLine, Qt.SquareCap, Qt.RoundJoin))
+            p.setPen(QPen(self.activeColour, self.preferences['size'], Qt.SolidLine, Qt.SquareCap, Qt.RoundJoin))
             p.drawLine(self.lastPos, e.pos())
 
             self.lastPos = e.pos()
@@ -484,7 +485,7 @@ class AnnotationCanvas(QLabel):
         if self.lastPos and self.view.currentlyDrawing:
             p = QPainter(self.pixmap())
             p.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
-            p.setPen(QPen(self.activeColour, self.config['size'] * BRUSHMULT, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            p.setPen(QPen(self.activeColour, self.preferences['size'] * BRUSHMULT, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
             p.drawLine(self.lastPos, e.pos())
 
             self.lastPos = e.pos()
@@ -685,7 +686,7 @@ class AnnotationCanvas(QLabel):
         self.currentStamp = stamp
         
 class PaintToolBox(QMainWindow):
-    '''  '''
+    """  """
     def __init__(self, tabBox, canvas):
         super(PaintToolBox, self).__init__()
         self.canvas = canvas

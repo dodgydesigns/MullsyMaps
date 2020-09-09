@@ -22,7 +22,6 @@ DEFAULT_CACHE_PATH = Path(COMMON_ROOT / '../default_cache')
 DISTANCE_UNITS_LOW = 'm'
 DISTANCE_UNITS_HIGH = 'km'
 
-
 ##-------------------------------- Constants --------------------------------------
 SCENARIO_LAT_LNG = [-32.12673, 115.25]
 VESSEL_OWNSHIP_ID = -1

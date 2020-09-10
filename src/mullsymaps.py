@@ -1,9 +1,9 @@
 import sys
-
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QApplication, QMainWindow
 
-from graphics.copView import COPView
+from graphics.windowFrame import WindowFrame
+import preferences
 
 
 class MainWindow(QMainWindow):
@@ -12,16 +12,17 @@ class MainWindow(QMainWindow):
 
         self.showFullScreen()
 
-        self.copView = COPView()
-        self.copView.initUi(self.width(), self.height())
+        self.windowFrame = WindowFrame()
+        self.windowFrame.initUi()
 
-        self.setCentralWidget(self.copView)
+        self.setCentralWidget(self.windowFrame)
         self.setStyleSheet(""" QMainWindow {background-color: black;} """)
-        self.setAutoFillBackground(True)
         self.show()
+
 
 if __name__ == '__main__':
 
     app = QApplication(sys.argv)
-    cop = MainWindow()
+    preferences.SCREEN_RESOLUTION = app.desktop().screenGeometry()
+    mm = MainWindow()
     sys.exit(app.exec_())

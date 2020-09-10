@@ -27,6 +27,7 @@ WAYPOINT_POINT_SIZE = 0.01
 TILE_DIMENSION = 256
 TILE_OFFSET = 10, 10-TILE_DIMENSION
 
+
 class View(QGraphicsView):
     '''
     This forms all the graphics elements for the COP.
@@ -37,22 +38,20 @@ class View(QGraphicsView):
     leftClickSignal = Signal(QGraphicsSceneMouseEvent)
     mapMovedSignal = Signal(list)
 
-    def __init__(self, mainWindow, canvasX, canvasY):
+    def __init__(self, mainWindow):
         '''
         Constructor
         '''
         super().__init__()
 
         self.mainWindow = mainWindow
-        self.canvasWidth = canvasX
-        self.canvasHeight = canvasY
 
         # View determines how much of the scene is visible.
         # if the scene is bigger, you get scroll bars
         self.scene = QGraphicsScene(self)
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
         self.setScene(self.scene)
-        self.setSceneRect(0, 0, self.canvasWidth, self.canvasHeight)
+        self.setSceneRect(0, 0, preferences.SCREEN_RESOLUTION.width(), preferences.SCREEN_RESOLUTION.height())
         self.setFrameShape(QFrame.NoFrame)
         self.setStyleSheet("border: 0px")
 
@@ -66,7 +65,7 @@ class View(QGraphicsView):
         self.previousItem = None
         self.currentlyDrawing = False
        
-        self.cursorPosition = QPoint(self.canvasWidth/2, self.canvasHeight/2)
+        self.cursorPosition = QPoint(preferences.SCREEN_RESOLUTION.width()/2, preferences.SCREEN_RESOLUTION.height()/2)
         self.vectorZoom = 1
         self.rasterZoom = 2
 
@@ -268,7 +267,10 @@ class View(QGraphicsView):
         ''' Load all layer tiles and features. '''
 #         try:
         self.mapController = MTSController(self, 
-                                           QRect(0, 0, self.canvasWidth, self.canvasHeight), 
+                                           QRect(0,
+                                                 0,
+                                                 preferences.SCREEN_RESOLUTION.width(),
+                                                 preferences.SCREEN_RESOLUTION.height()),
                                            QPointF(-32.2138204, 115.0387413))
              
         # add Web Map Service layers
@@ -492,7 +494,7 @@ class View(QGraphicsView):
             layers=['CRUSE:World_Bathymetric_Heightmap'],
             srs='EPSG:4326',
             bbox=(-180, -90, 180, 90),
-            size=(self.canvasWidth, self.canvasHeight),
+            size=(preferences.SCREEN_RESOLUTION.width(), preferences.SCREEN_RESOLUTION.height()),
             format='image/png',
             query_layers=['CRUSE:World_Bathymetric_Heightmap'],
             info_format='application/json',
@@ -505,7 +507,7 @@ class View(QGraphicsView):
 #             layers=['CRUSE:Aust_Benthic_Substrate'],
 #             srs='EPSG:4326',
 #             bbox=(99.69917295458612, -55.980399892638445, 170.4556884483281, -4.318218428155205),
-#             size=(self.canvasWidth, self.canvasHeight),
+#             size=(preferences.SCREEN_RESOLUTION.width(), preferences.SCREEN_RESOLUTION.height()),
 #             format='image/png',
 #             query_layers=['CRUSE:Aust_Benthic_Substrate'],
 #             info_format='application/json',
@@ -518,7 +520,7 @@ class View(QGraphicsView):
 #             layers=['CRUSE:WA_Landmass'],
 #             srs='EPSG:4326',
 #             bbox=(-180, -90, 180, 90),
-#             size=(self.canvasWidth, self.canvasHeight),
+#             size=(preferences.SCREEN_RESOLUTION.width(), preferences.SCREEN_RESOLUTION.height()),
 #             format='image/png',
 #             query_layers=['CRUSE:WA_Landmass'],
 #             info_format='application/json',

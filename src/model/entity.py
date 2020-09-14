@@ -138,7 +138,7 @@ class Entity(UIObject):
         self.lastBearingTime = currentTime
         
         if self.bearingTimer >= 6:
-            relativeBearing = self.view.ownship.course - self.bearing
+            relativeBearing = self.view.ownShip.course - self.bearing
             deltaBearing = self.lastBearing - relativeBearing
             bearingRate = ((deltaBearing*self.bearingTimer) / 6) * 10
             self.lastBearing = relativeBearing

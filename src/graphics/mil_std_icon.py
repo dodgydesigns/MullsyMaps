@@ -31,7 +31,7 @@ class MilStdIcon(object):
     def getIconPath(self):
 
         if self.classification == preferences.OWNSHIP:
-            self.iconPath = self.iconPath + "ownship.svg"
+            self.iconPath = self.iconPath + "ownShip.svg"
             
 #         elif self.affiliation == preferences.AFFILIATION_Unknown:
 #             self.iconPath = str(preferences.ICON_PATH) + os.sep + 'mil2525' + os.sep

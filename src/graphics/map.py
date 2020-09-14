@@ -17,21 +17,13 @@ from model.feature import Feature
 from model.layers import TacticalLayer, AnnotationsLayer, RulerLayer, \
     SpirographLayer, NavChartsTemplateLayer
 from model.ownship import Ownship
-from model.threat_arc import ThreatArc
 import preferences
 
 
-TEXTBOX_SCALE = 144*12
-THREAT_ARC_SCALE = 1
-WAYPOINT_POINT_SIZE = 0.01
-TILE_DIMENSION = 256
-TILE_OFFSET = 10, 10-TILE_DIMENSION
-
-
-class View(QGraphicsView):
-    '''
+class Map(QGraphicsView):
+    """
     This forms all the graphics elements for the COP.
-    '''
+    """
     # A signal to send click information to any listeners
     rightClickSignal = Signal(list)
     keyPressSignal = Signal(str)
@@ -39,22 +31,19 @@ class View(QGraphicsView):
     mapMovedSignal = Signal(list)
 
     def __init__(self, mainWindow):
-        '''
+        """
         Constructor
-        '''
+        """
         super().__init__()
 
         self.mainWindow = mainWindow
 
-        # View determines how much of the scene is visible.
-        # if the scene is bigger, you get scroll bars
         self.scene = QGraphicsScene(self)
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
         self.setScene(self.scene)
         self.setSceneRect(0, 0, preferences.SCREEN_RESOLUTION.width(), preferences.SCREEN_RESOLUTION.height())
         self.setFrameShape(QFrame.NoFrame)
         self.setStyleSheet("border: 0px")
-
         self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.setRenderHint(QPainter.Antialiasing)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -69,24 +58,23 @@ class View(QGraphicsView):
         self.vectorZoom = 1
         self.rasterZoom = 2
 
-        self.tacticalLayers = {}
-        self.tacticalLayers['Threat Arcs'] = TacticalLayer(self)
-
         self.gisLayers = {}
-        
-        self.ownship = None
+        self.tacticalLayers = {}
         self.truthEntities = {}
         self.contacts = {}
-       
+        self.ownShip = None
+
+        self.mapController = MTSController(self,
+                                           QRect(0,
+                                                 0,
+                                                 preferences.SCREEN_RESOLUTION.width(),
+                                                 preferences.SCREEN_RESOLUTION.height()),
+                                           QPointF(-32.2138204, 115.0387413))
         self.createGisLayers()
-        
         self.annotationLayers = AnnotationsLayer(self)
         self.rulerLayer = RulerLayer(self)
-        self.spirographLayer = SpirographLayer(self)
         self.toolbox = Toolbox(self)
-        
         self.viewport().installEventFilter(self)
-
         self.update()
         
         self.runCacheBuilder = False
@@ -107,7 +95,7 @@ class View(QGraphicsView):
             return False
 
     def resize(self, width, height):
-        ''' If the container is resized, resize the maps. '''
+        """ If the container is resized, resize the maps. """
         
         self.setGeometry(0, 0, width, height)
         self.mapController.updateCanvasSize(width, height)
@@ -129,8 +117,8 @@ class View(QGraphicsView):
         lat, lng = (preferences.SCENARIO_LAT_LNG[0], 
                     preferences.SCENARIO_LAT_LNG[1])
                       
-        if not self.ownship:
-            # quick access to ownship
+        if not self.ownShip:
+            # quick access to ownShip
             ownship = Ownship(self,
                               'OS',
                               preferences.AFFILIATION_FRIENDLY,
@@ -140,7 +128,7 @@ class View(QGraphicsView):
                               osCourse)
              
             self.truthEntities['OS'] = ownship
-            self.ownship = ownship
+            self.ownShip = ownship
             self.toolbox.createOwnshipMenu()
              
             self.zoomOwnship()
@@ -198,8 +186,8 @@ class View(QGraphicsView):
 #         for contact in self.cruseData.getContacts():
 # 
 #             contactId = contact.getId()
-#             latLon = self.mapController.vincentyDirect(self.ownship.lat, 
-#                                                        self.ownship.lon, 
+#             latLon = self.mapController.vincentyDirect(self.ownShip.lat,
+#                                                        self.ownShip.lon,
 #                                                        contact.getBearing(), 
 #                                                        contact.getRange())  #4572m = 5kyds            
 #             xy = self.mapController.toCanvasCoordinates(latLon.x(), latLon.y())
@@ -236,23 +224,12 @@ class View(QGraphicsView):
     def updateAllGraphicsLayers(self):
         
         # Don't update if we're still working
-        if not self.rulerLayer.currentlyRuling and not self.mainWindow.progressUpdateThreadRunning:               
-            for spiro in self.spirographLayer.spirographList:
-                newCentre = self.mapController.toCanvasCoordinates(spiro.rangeOfTheDayRadiusLatLon.x(), spiro.rangeOfTheDayRadiusLatLon.y())
-                spiroBound = spiro.spiroSegmentGraphicsGroup.boundingRect()
-                spiro.spiroSegmentGraphicsGroup.setPos(newCentre.x()-(spiroBound.width()/2) - spiroBound.x(),
-                                                       newCentre.y()-(spiroBound.height()/2) - spiroBound.y())
-            
+        if not self.rulerLayer.currentlyRuling and not self.mainWindow.progressUpdateThreadRunning:
             self.rulerLayer.updateLines()
 
         # Redraw each annotation to ensure they are in the correct location with each zoom.
         if not self.currentlyDrawing:
             self.annotationLayers.updatePosition()
-                        
-        # Update location of threat arcs
-        for threatarc in self.tacticalLayers['Threat Arcs'].threatArcs:
-            if threatarc.visible:
-                threatarc.draw()
 
         self.navChartTemplates.update()
             
@@ -264,36 +241,26 @@ class View(QGraphicsView):
                                             GIS FUNCTIONS
         ------------------------------------------------------------------------------------------------ '''
     def createGisLayers(self):
-        ''' Load all layer tiles and features. '''
-#         try:
-        self.mapController = MTSController(self, 
-                                           QRect(0,
-                                                 0,
-                                                 preferences.SCREEN_RESOLUTION.width(),
-                                                 preferences.SCREEN_RESOLUTION.height()),
-                                           QPointF(-32.2138204, 115.0387413))
-             
-        # add Web Map Service layers
-        self.loadLayers()
-        # features are not available without a GeoServer. Will fail gracefully.
+        """ Load all layer tiles and features. """
         if preferences.USE_GEOSERVER:
+            # add Web Map Service layers
+            self.loadLayers()
+            # features are not available without a GeoServer. Will fail gracefully.
             self.wfsLoader()
-#         except Exception as e:
-#             print('Could not create Map Controller. {}'.format(e))
-#             print('Please check the availability of the GeoServer.')
-         
+
     def wfsLoader(self):
         
-        wfsConnection = WFS(self)
-        
-#         self.gisLayers['Australian Airports'] = FeatureLayer(self, wfsConnection.getAirports(), True)
-#         self.gisLayers['Australian Airports'].draw()
-#         
-#         self.gisLayers['Australian Ports'] = FeatureLayer(self, wfsConnection.getPorts(), True)
-#         self.gisLayers['Australian Ports'].draw()
-#         
-#         self.gisLayers['Cities'] = FeatureLayer(self, wfsConnection.getCities(), True)
-#         self.gisLayers['Cities'].draw()
+        # wfsConnection = WFS(self)
+        #
+        # self.gisLayers['Australian Airports'] = FeatureLayer(self, wfsConnection.getAirports(), True)
+        # self.gisLayers['Australian Airports'].draw()
+        #
+        # self.gisLayers['Australian Ports'] = FeatureLayer(self, wfsConnection.getPorts(), True)
+        # self.gisLayers['Australian Ports'].draw()
+        #
+        # self.gisLayers['Cities'] = FeatureLayer(self, wfsConnection.getCities(), True)
+        # self.gisLayers['Cities'].draw()
+        pass
 
     def loadLayers(self):
     
@@ -336,7 +303,11 @@ class View(QGraphicsView):
         worldLandmass = MTSLayer(self, 'Land', 'World_Landmasses', 98, False, 1.0)
         self.mapController.addLayer('gisLayers', 'World Land Masses', worldLandmass)
 # 
-#         # chartsArray = ['AUS00111P0', 'AUS00111P1', 'AUS00112P0', 'AUS00113P0', 'AUS00114P0', 'AUS00114P1', 'AUS00116P1', 'AUS00116P2', 'AUS00116P3', 'AUS00116P4', 'AUS00116P5', 'AUS00116P6', 'AUS00116P7', 'AUS00117P0', 'AUS00755P0', 'AUS00331P0', 'AUS00331P1', 'AUS00331P2', 'AUS00331P3', 'AUS00332P0', 'AUS00745P0', 'AUS00746P0', 'AUS00752P0', 'AUS00753P0', 'AUS00754P0', 'AUS00756P0', 'AUS00757P0', 'AUS00758P0', 'AUS00759P0', 'AUS00774P0']
+        # chartsArray = ['AUS00111P0', 'AUS00111P1', 'AUS00112P0', 'AUS00113P0', 'AUS00114P0',
+        # 'AUS00114P1', 'AUS00116P1', 'AUS00116P2', 'AUS00116P3', 'AUS00116P4', 'AUS00116P5', 'AUS00116P6',
+        # 'AUS00116P7', 'AUS00117P0', 'AUS00755P0', 'AUS00331P0', 'AUS00331P1', 'AUS00331P2', 'AUS00331P3',
+        # 'AUS00332P0', 'AUS00745P0', 'AUS00746P0', 'AUS00752P0', 'AUS00753P0', 'AUS00754P0', 'AUS00756P0',
+        # 'AUS00757P0', 'AUS00758P0', 'AUS00759P0', 'AUS00774P0']
 #         chartsArray = ['AUS00111P0', 'AUS00111P1', 'AUS00112P0', 'AUS00113P0', 'AUS00114P0', 'AUS00114P1', 'AUS00117P0']
 #         for chart in chartsArray:
 #             chartLayer = MTSLayer(self, 'Navigation', chart, 151, False, 1.0)
@@ -349,18 +320,6 @@ class View(QGraphicsView):
     ''' ------------------------------------------------------------------------------------------------
                                             GRAPHICS FUNCTIONS
         ------------------------------------------------------------------------------------------------ '''
-    def createThreatArc(self, designation, reportedLat, reportedLon, toi, course, speed, eir):
-        '''
-        Draw an arc on the map relative to ownship that shows a reported threat.
-        designation
-        reportedX, reportedY
-        toi: Time of Intercept - when the threat was detected.
-        course, speed
-        eir: Expected in Range - based on course, speed.
-        '''
-        arc = ThreatArc(self, designation, reportedLat, reportedLon, toi, course, speed, eir)
-        self.tacticalLayers['Threat Arcs'].threatArcs.append(arc)
-        
     def setIconOpacity(self, opacity):
         for entity in self.contacts.values():
             entity.icon.setOpacity(opacity)
@@ -374,9 +333,9 @@ class View(QGraphicsView):
                                             MOUSE/KEYBOARD FUNCTIONS
         ------------------------------------------------------------------------------------------------ '''
     def keyPressEvent(self, event):
-        '''
+        """
         End text entering.
-        '''
+        """
         self.keyPressSignal.emit(event.text())
             
         if event.key() == 90:
@@ -390,9 +349,9 @@ class View(QGraphicsView):
         pass
 
     def mouseMoveEvent(self, event):
-        '''
+        """
         Move map around or start drawing.
-        '''
+        """
         # update location label
         ll = self.mapController.toGeographicalCoordinates(event.pos().x(), event.pos().y())
         mouseLat, mouseLon = ll.x(), ll.y()
@@ -403,13 +362,13 @@ class View(QGraphicsView):
             endX = event.pos().x()
             endY = event.pos().y()
             self.rulerLayer.updateLine(endX, endY)
-        elif self.ownship:
-            bearing = self.mapController.angleBetweenTwoPoints(radians(self.ownship.lat),
-                                                               radians(self.ownship.lon),
+        elif self.ownShip:
+            bearing = self.mapController.angleBetweenTwoPoints(radians(self.ownShip.lat),
+                                                               radians(self.ownShip.lon),
                                                                radians(mouseLat),
                                                                radians(mouseLon))
-            distance = self.mapController.distanceBetweenTwoPoints(self.ownship.lat,
-                                                                   self.ownship.lon,
+            distance = self.mapController.distanceBetweenTwoPoints(self.ownShip.lat,
+                                                                   self.ownShip.lon,
                                                                    mouseLat,
                                                                    mouseLon)
             self.mainWindow.updateLocationLabel(mouseLat, mouseLon, bearing, distance)
@@ -427,11 +386,10 @@ class View(QGraphicsView):
                  
         self.mapMovedSignal.emit([event])
 
-                 
     def mousePressEvent(self, event):
-        '''
+        """
         Move map around or start drawing.
-        '''
+        """
         clickedItem = self.itemAt(event.pos())
 
         allEntities = list(self.contacts.values()) + list(self.truthEntities.values())
@@ -462,12 +420,6 @@ class View(QGraphicsView):
                         self.previousItem = entity
                         entity.showHideMetaDialog(self.metaDialogVisible)
                         break
-                             
-                for threatArc in self.tacticalLayers['Threat Arcs'].threatArcs:
-                    if clickedItem == threatArc.graphicsGroup:
-                        self.metaDialogVisible = True
-                        self.previousItem = threatArc
-                        threatArc.showHideMetaDialog(self.metaDialogVisible)
  
                 self.leftClickSignal.emit(event)
                  
@@ -574,27 +526,27 @@ class View(QGraphicsView):
                                             NAVIGATION FUNCTIONS
         ------------------------------------------------------------------------------------------------ '''
     def zoomOwnship(self):
-        '''
+        """
         Moves the canvas to be centred over OWNSHIP at a suitable zoom level.
-        '''
+        """
         self.vectorZoom = 8
         self.rasterZoom = 8
         while self.vectorZoom < 9:
-            self.mapController.moveToGeographicLocation(self.ownship.lat, self.ownship.lon)
+            self.mapController.moveToGeographicLocation(self.ownShip.lat, self.ownShip.lon)
             self.vectorZoom *= 1.1
             self.mapController.updateZoom()
 
-        self.ownship.update(self.ownship.x,
-                            self.ownship.y,
-                            self.ownship.speed,
-                            self.ownship.course)
+        self.ownShip.update(self.ownShip.x,
+                            self.ownShip.y,
+                            self.ownShip.speed,
+                            self.ownShip.course)
         self.scene.update()
 
     ''' ------------------------------------------------------------------------------------------------
                                             UTILITY FUNCTIONS
         ------------------------------------------------------------------------------------------------ '''      
     def cacheBuilder(self):
-        ''' Creates all the tiles required for a specific area at all zoom levels. '''
+        """ Creates all the tiles required for a specific area at all zoom levels. """
         if self.runCacheBuilder:
             print('START CACHE BUILDER')
             for northing in [northing / 10.0 for northing in range(1122, 1250, 1)]:
@@ -696,9 +648,9 @@ class View(QGraphicsView):
 #         self.ct._affiliation = preferences.ThreatType.Hostile
 
     def moveToRandomLocation(self):
-        '''
+        """
         Demo to test navigation.
-        '''
+        """
         r = random.randint(0, 3)
         if r == 0:
             # Perth
@@ -714,9 +666,9 @@ class View(QGraphicsView):
             print('London')       
         
     def drawRandomThreatArc(self, move):
-        '''
+        """
         Demo to test threat arc.
-        '''
+        """
         r = random.randint(0, 4)
         if r == 0:
             # Perth

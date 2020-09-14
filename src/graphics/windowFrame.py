@@ -1,15 +1,11 @@
-import os
-from pathlib import Path
-import string
 import time
 
 from PySide2.QtCore import Qt, QThread, Signal, Slot, QSize
 from PySide2.QtGui import QIcon, QPixmap
-from PySide2.QtWidgets import QWidget, QApplication, QStyleFactory, \
-    QGridLayout, QSizePolicy, QHBoxLayout, QPushButton, QLabel, QSlider, \
-    QPlainTextEdit, QLineEdit
+from PySide2.QtWidgets import QWidget, QGridLayout, QSizePolicy, QHBoxLayout, QPushButton, QLabel, QSlider, \
+    QPlainTextEdit
 
-from graphics.view import View
+from graphics.map import Map
 import preferences
 
 CUSTOM_STYLE = '''
@@ -144,7 +140,7 @@ class WindowFrame(QWidget):
         self.progressLabel = QPlainTextEdit()
         self.startRulerButton = QPushButton()
         self.rulerLabel = QLabel('0.00 yd\n0.0 hrs')
-        self.view = View(self)
+        self.view = Map(self)
         self.toolbox = self.view.toolbox
         self.showHideButton = QPushButton('Menu')
         self.latLonLabel = QLabel('Welcome')
@@ -316,7 +312,7 @@ class WindowFrame(QWidget):
                                                                          line.endLatLon.x(),
                                                                          line.endLatLon.y())
         
-        osSpeedInMetersPerSecond = 0.514444 * self.view.ownship.speed
+        osSpeedInMetersPerSecond = 0.514444 * self.view.ownShip.speed
         distanceInMeters = distance * 0.9144
         timeInSeconds = distanceInMeters / osSpeedInMetersPerSecond
         m, s = divmod(timeInSeconds, 60)
@@ -353,7 +349,7 @@ class WindowFrame(QWidget):
         self.view.setIconSize(size)
 
     def zoomOwnship(self):
-        """ Move to centre of ownship and zoom in. """
+        """ Move to centre of ownShip and zoom in. """
         self.view.zoomOwnship()
 
     def updateLocationLabel(self, mouseLat, mouseLon, bearing, distance):
@@ -402,7 +398,7 @@ class WindowFrame(QWidget):
             self.toolbox.tabBox.setCurrentIndex(0)  # always start with the layers tab.
 
     def doUpdate(self):
-        """ Don't want to start creating the COP until we have ownship. """
+        """ Don't want to start creating the COP until we have ownShip. """
         if self.view is None:
             self.initUi()
 

@@ -13,9 +13,9 @@ SONAR_RANGE_OF_THE_DAY = 25000  # yards
 
 
 class PolygonLayer():
-    '''
+    """
     Used for map polygons in non-Geoserver mode.
-    '''
+    """
     def __init__(self, polygons, visible):
         self.polygons = polygons
         self.visible = visible
@@ -31,10 +31,10 @@ class PolygonLayer():
             self.visible = False
                     
 class AnnotationsLayer():
-    ''' Layer for user annotations and drawings. '''  
+    """ Layer for user annotations and drawings. """
     
     class PaintToolConfig():
-        ''' Hold all the current tool settings. '''
+        """ Hold all the current tool settings. """
         def __init__(self):    
             
             self.primaryColour = QColor(Qt.black)
@@ -48,7 +48,7 @@ class AnnotationsLayer():
         self.activeLayerName = ''
             
     def addAnnotationLayer(self, layerName):
-        ''' Drawing tool. '''
+        """ Drawing tool. """
                 
         layer = AnnotationCanvas(self.view, self.toolsConfig)
         layer.proxy = self.view.scene.addWidget(layer)
@@ -70,14 +70,14 @@ class AnnotationsLayer():
             self.visible = False
 
     def updatePosition(self):
-        ''' Move each layer with the map. '''
+        """ Move each layer with the map. """
         for layer in self.layers.values():
             canvasPoint = self.view.mapController.toCanvasCoordinates(layer.lat, layer.lon) - \
                           QPointF(layer.width/2, layer.height/2)
             layer.move(canvasPoint.x(), canvasPoint.y())
             
     def updateZoom(self, scale):
-        ''' Scale annotations with map. '''
+        """ Scale annotations with map. """
         for layer in self.view.annotationLayers.layers.values():
     
             tl = self.view.mapController.toCanvasCoordinates(layer.lat, layer.lon) - QPointF(layer.width/2, layer.height/2)             
@@ -98,9 +98,9 @@ class AnnotationsLayer():
                 layer.height *= 2  
                             
     def zoomToLayer(self, layerName):
-        '''
+        """
         Moves the canvas to be centred over a layer.
-        '''
+        """
         # move the annotation layer to the right place
         layer = self.layers[layerName]
         while layer.scale != 1:
@@ -117,10 +117,10 @@ class AnnotationsLayer():
         self.view.scene.update()
                                 
 class RulerLayer():
-    ''' 
+    """
     Used to create paths on the map which displays total path length and time to perambulate
-    the path at current speed. 
-    '''
+    the path at current speed.
+    """
     class Line():
         def __init__(self, view, startLatLon, proxy):
                         
@@ -135,7 +135,7 @@ class RulerLayer():
             self.proxy = proxy
             
         def updatePosition(self):
-            ''' Move each line with the map. '''
+            """ Move each line with the map. """
             start = self.view.mapController.toCanvasCoordinates(self.startLatLon.x(), self.startLatLon.y())
             end = self.view.mapController.toCanvasCoordinates(self.endLatLon.x(), self.endLatLon.y())
             self.proxy.setLine(start.x(),
@@ -154,7 +154,7 @@ class RulerLayer():
         self.currentlyRuling = False
 
     def setStartPoint(self, startX, startY):
-        ''' Set the first point of a line segment. '''
+        """ Set the first point of a line segment. """
         # store coordinates in lat/lon for correct translation/scale with pan/zoom.
         self.latLonStart = self.view.mapController.toGeographicalCoordinates(startX, startY)
         line = QGraphicsLineItem(startX,
@@ -167,19 +167,19 @@ class RulerLayer():
         self.lineObject = self.Line(self.view, self.latLonStart, line)   
 
     def updateLines(self):
-        ''' Move lines with map. '''
+        """ Move lines with map. """
         for line in self.lineSegmentList:
             line.updatePosition() 
             
     def updateLine(self, endX, endY):
-        ''' Allows preview of line to move with mouse. '''
+        """ Allows preview of line to move with mouse. """
         self.lineObject.proxy.setLine(self.lineObject.startX,
                                       self.lineObject.startY,
                                       endX,
                                       endY)
 
     def endLine(self, endPos):
-        ''' End the line drawing and save the line object to the layer's list. '''
+        """ End the line drawing and save the line object to the layer's list. """
         self.lineObject.endLatLon = self.view.mapController.toGeographicalCoordinates(endPos.x(), endPos.y())
         self.lineObject.proxy.setLine(self.lineObject.startX,
                                       self.lineObject.startY,
@@ -203,7 +203,7 @@ class RulerLayer():
             self.visible = False
 
     def clearRulerLines(self):
-        ''' Remove lineSegmentList and clear the ruler lineSegmentList list. '''
+        """ Remove lineSegmentList and clear the ruler lineSegmentList list. """
         for line in self.view.rulerLayer.lineSegmentList:
             self.view.scene.removeItem(line.proxy)
         self.view.rulerLayer.lineSegmentList.clear()
@@ -220,11 +220,11 @@ class SpirographLayer():
         self.maxDepth = 0
         
     def fill(self):
-        ''' 
+        """
         Once each segment that comprises each Spirograph is determined, it can be coloured based on the speed of sound
         for that region. The speed of sound value is saved with the segment so each Spirograph can be redrawn quickly
-        without having to poll the server for the speed of sound. 
-        '''        
+        without having to poll the server for the speed of sound.
+        """
         ncwmsTools = NCWMSTools(self.view)
         
         for spiro in self.spirographList:
@@ -251,24 +251,24 @@ class SpirographLayer():
             self.view.mainWindow.setDepthLabel()
             
     def update(self):
-        ''' 
+        """
         Called when the map is zoomed. The Spirographs are redrawn using the sound speed determined when they were created. This
-        saves having to repeat the expensive call to the ncMWS server. '''
+        saves having to repeat the expensive call to the ncMWS server. """
         for spiro in self.spirographList:
             spiro.redrawSpiroPolygons() 
 
     def clear(self):
-        ''' Removed all p(detection) circles and their fills. '''
+        """ Removed all p(detection) circles and their fills. """
         for spiro in self.spirographList:
             self.view.scene.removeItem(spiro.spiroSegmentGraphicsGroup)
             spiro.spiroSegmentList.clear()
         self.spirographList.clear()
             
     def addProbOfDetectionBoundaries(self):
-        ''' 
+        """
         Draws circles (with a diameter=sonar range of the day) covering a ruler lineSegment entered. Circles
-        are filled to denote probability of detection. 
-        '''
+        are filled to denote probability of detection.
+        """
         for spiro in self.spirographList:
             self.view.scene.removeItem(spiro.spiroSegmentGraphicsGroup)
             
@@ -323,7 +323,7 @@ class TacticalLayer():
         self.graphics.clear()
 
 class FeatureLayer():
-    ''' SVGs that denote airports, ports, cities etcl. '''
+    """ SVGs that denote airports, ports, cities etcl. """
     def __init__(self, view, features, visible):
         self.view = view
         self.features = features
@@ -356,38 +356,38 @@ class EntityLayer():
             entity.showHide(self.visible)
 
 class GraphicsLayer():
-    '''
+    """
     Groups like graphics items together so they can be handled like a 'single' item.
-    '''
+    """
     def __init__(self, view, visible):
         self.view = view
         self.graphicObjects = []
         self.visible = visible
         
     def addGraphicsObject(self, obj):
-        '''
+        """
         Add any icons, graphics view items etc. to this layer object.
-        '''
+        """
         self.graphicObjects.append(obj)
         
     def removeGraphicsObject(self, obj):
-        '''
+        """
         Remove an icon, graphics view item etc. from this layer object.
-        '''
+        """
         self.graphicObjects.remove(obj)
         
     def removeAllGraphicsObjects(self):
-        '''
+        """
         Remove all graphics from the view and graphicsObjectList.
-        '''
+        """
         for obj in self.graphicObjects:
             self.view.scene.removeItem(obj)
         self.graphicObjects.clear()
 
     def showHide(self, showHide):
-        '''
+        """
         Make all graphics items on this layer visible.
-        '''
+        """
         if showHide == 'show':
             self.visible = True
             for item in self.graphicObjects:
@@ -409,7 +409,7 @@ class BreadcrumbLayer():
             self.proxy = proxy
 
         def updatePosition(self):
-            ''' Move each line with the map. '''
+            """ Move each line with the map. """
             start = self.view.mapController.toCanvasCoordinates(self.startLatLon.x(), self.startLatLon.y())
             end = self.view.mapController.toCanvasCoordinates(self.endLatLon.x(), self.endLatLon.y())
             self.proxy.setLine(start.x(),
@@ -426,7 +426,7 @@ class BreadcrumbLayer():
         self.startLine(QPointF(entity.lat, entity.lon))
         
     def startLine(self, latLon):
-        ''' Start a new line showing current course history. '''
+        """ Start a new line showing current course history. """
         start = self.view.mapController.toCanvasCoordinates(latLon.x(), latLon.y())
         proxy = self.view.scene.addLine(start.x(), start.y(), start.x(), start.y())
         proxy.setZValue(preferences.ZVALUE_Icons)
@@ -439,18 +439,18 @@ class BreadcrumbLayer():
         self.graphicObjects.append(line)
         
     def endLine(self, latLon):
-        ''' End course history line e.g. due to course change. '''
+        """ End course history line e.g. due to course change. """
         self.graphicObjects[-1].endLatLon = QPointF(latLon.x(), latLon.y())
         
     def updateLines(self):
-        ''' Ensure all lines update with map pan/zoom. '''
+        """ Ensure all lines update with map pan/zoom. """
         for line in self.graphicObjects:
             line.updatePosition()
 
     def showHide(self, showHide):
-        '''
+        """
         Make all graphics items on this layer visible.
-        '''
+        """
         if showHide == 'show':
             self.visible = True
             for line in self.graphicObjects:
@@ -458,10 +458,11 @@ class BreadcrumbLayer():
         else:
             self.visible = False
             for line in self.graphicObjects:
-                line.proxy.hide() 
+                line.proxy.hide()
+
 
 class NavChartsTemplateLayer():
-    ''' Draws and labels outlines for each chart. '''
+    """ Draws and labels outlines for each chart. """
     def __init__(self, view):
         
         self.view = view
@@ -496,7 +497,7 @@ class NavChartsTemplateLayer():
             self.chartNames[text] = chartName
                         
     def update(self):
-        ''' Relocate the graphics with pan/zoom. '''
+        """ Relocate the graphics with pan/zoom. """
         if self.visible:
             for text, rectPoints in self.chartOutlines.items():
                 tl = QPointF(self.mapController.toCanvasCoordinates(rectPoints[3], rectPoints[0]))

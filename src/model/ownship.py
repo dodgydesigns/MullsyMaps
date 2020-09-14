@@ -238,7 +238,7 @@ class Ownship(UIObject):
 
 class DistanceMarker():
     '''
-    This holds all the details for a single circle that surrounds ownship to denote various
+    This holds all the details for a single circle that surrounds ownShip to denote various
     distances from the ship.
     '''
     def __init__(self, name, proxy, circleCentreX, circleCentreY, radius, radiusMultiplier, pen):

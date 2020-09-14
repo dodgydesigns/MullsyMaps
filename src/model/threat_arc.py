@@ -20,7 +20,7 @@ class ThreatArc(QWidget):
     
     def __init__(self, view, designation, reportedLat, reportedLon, toi, course, speed, eir): 
         '''
-        Draw an arc on the map relative to ownship that shows a reported threat.
+        Draw an arc on the map relative to ownShip that shows a reported threat.
         designation
         reportedX, reportedY
         toi: Time of Intercept - when the threat was detected.
@@ -55,7 +55,7 @@ class ThreatArc(QWidget):
                     QPointF(45, 0))
         
         arc = QGraphicsPathItem(path)
-        angleToOwnship = atan2(self.view.ownship.y - self.reportedLocationOnCanvas.y(), self.view.ownship.x - self.reportedLocationOnCanvas.x()) - pi/2
+        angleToOwnship = atan2(self.view.ownShip.y - self.reportedLocationOnCanvas.y(), self.view.ownShip.x - self.reportedLocationOnCanvas.x()) - pi / 2
         arc.setPos(self.reportedLocationOnCanvas.x(), self.reportedLocationOnCanvas.y())
         arc.setRotation(degrees(angleToOwnship))
         arc.setPen(QPen(Qt.red, THREAT_ARC_SCALE))

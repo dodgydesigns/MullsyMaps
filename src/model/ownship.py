@@ -1,8 +1,8 @@
-'''
+"""
 Created on 30 Aug. 2018
 
 @author: mullsy
-'''
+"""
 from math import sin, radians, cos, atan2, pi
 
 from PySide2.QtCore import QLineF, Qt, QPointF, QPoint
@@ -15,15 +15,16 @@ import preferences
 
 
 class Ownship(UIObject):
-    '''
+    """
     Used to represent the entity the user is controlling.
-    '''
+    """
     def __init__(self, view, designation, affiliation, x, y, speed, course):
-        '''
+        """
         Constructor
-        '''
+        """
         UIObject.__init__(self, 
-                          view=view, 
+                          map
+                          =view,
                           designation=designation, 
                           affiliation=affiliation, 
                           classification=preferences.OWNSHIP, 
@@ -35,22 +36,18 @@ class Ownship(UIObject):
         self.view = view
         self.iconScale = preferences.ICON_SCALE
         self.view.mapController.updateZoom()
-        self.graphicsLayers = {}
-        self.graphicsLayers[preferences.ICON] = GraphicsLayer(view, True)
-        self.graphicsLayers[preferences.ANNOTATIONS] = GraphicsLayer(view, True)
-        self.graphicsLayers[preferences.HISTORICAL_COURSE] = GraphicsLayer(view, True)
-        self.graphicsLayers[preferences.PREDICTED_COURSE] = GraphicsLayer(view, True)
-        self.graphicsLayers[preferences.DISTANCE_MARKERS] = GraphicsLayer(view, True)
-                
+        self.graphicsLayers = {preferences.ICON: GraphicsLayer(view, True),
+                               preferences.ANNOTATIONS: GraphicsLayer(view, True),
+                               preferences.HISTORICAL_COURSE: GraphicsLayer(view, True),
+                               preferences.PREDICTED_COURSE: GraphicsLayer(view, True),
+                               preferences.DISTANCE_MARKERS: GraphicsLayer(view, True)}
+
         self.drawSpiroPolygons()
         
-    #----------------------------------------------------------------------------------------------
-    #        OVER-WRITEN FUNCTIONS
-    #----------------------------------------------------------------------------------------------
     def drawSpiroPolygons(self):
-        '''
+        """
         Create all graphic elements including entity icon and all decorations.
-        '''
+        """
         self.calculateIconCentres()
         
         self.icon.setScale(self.iconScale)
@@ -119,9 +116,9 @@ class Ownship(UIObject):
                                                                            pen=QPen(Qt.green, preferences.CIRCLE_PEN)))
         
     def update(self, x, y, speed, course):
-        '''
+        """
         Move or update the entity icon and all graphicsLayers.
-        '''        
+        """
         self.x = x
         self.y = y   
         self.speed = speed
@@ -163,9 +160,9 @@ class Ownship(UIObject):
                 layer.showHide('hide')
                 
     def showHide(self, layerName, showHide):
-        '''
+        """
         Used to show/hide the entity or entity icon and graphicsLayers separately.
-        '''
+        """
         if layerName == 'All Layers':
             for name, layer in self.graphicsLayers.items():
                 if showHide == 'show':
@@ -181,9 +178,9 @@ class Ownship(UIObject):
                     self.graphicsLayers[layerName].showHide('hide')
 
     def zoom(self):
-        '''
+        """
         Scale the entity icon using Qt. All graphicsLayers scale automatically but hide/show graphicsLayers at certain zoom levels.
-        '''
+        """
         if self.view.vectorZoom < 8:
             for name, layer in self.graphicsLayers.items():
                 if name != preferences.ICON:
@@ -196,9 +193,9 @@ class Ownship(UIObject):
                         layer.showHide('show')     
         
     def showHideMetaDialog(self, showMetaDialog):
-        '''
+        """
         Shows a dialog with information about this object when it is clicked.
-        '''
+        """
         self.vectorZoom = self.view.vectorZoom
         if showMetaDialog:
             text = """<html>
@@ -229,18 +226,18 @@ class Ownship(UIObject):
     #        OBJECT SPECIFIC FUNCTIONS
     #----------------------------------------------------------------------------------------------
     def calculateIconCentres(self):
-        '''
+        """
         Qt uses the top left corner of the bounding box of graphics to position them. This works out where
         the centre is so graphics are positioned on the centre.
-        '''
+        """
         self.iconCenterX = self.x - (self.icon.boundingRect().center().x() * self.iconScale)        
         self.iconCenterY = self.y - (self.icon.boundingRect().center().y() * self.iconScale)
 
 class DistanceMarker():
-    '''
+    """
     This holds all the details for a single circle that surrounds ownShip to denote various
     distances from the ship.
-    '''
+    """
     def __init__(self, name, proxy, circleCentreX, circleCentreY, radius, radiusMultiplier, pen):
     
         self.name = name

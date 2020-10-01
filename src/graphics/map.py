@@ -62,7 +62,7 @@ class Map(QGraphicsView):
         self.tacticalLayers = {}
         self.truthEntities = {}
         self.contacts = {}
-        self.ownShip = None
+        self.ownship = None
 
         self.mapController = MTSController(self,
                                            QRect(0,
@@ -74,6 +74,8 @@ class Map(QGraphicsView):
         self.annotationLayers = AnnotationsLayer(self)
         self.rulerLayer = RulerLayer(self)
         self.toolbox = Toolbox(self)
+        self.navChartTemplates = NavChartsTemplateLayer(self)
+
         self.viewport().installEventFilter(self)
         self.update()
         
@@ -117,8 +119,8 @@ class Map(QGraphicsView):
         lat, lng = (preferences.SCENARIO_LAT_LNG[0], 
                     preferences.SCENARIO_LAT_LNG[1])
                       
-        if not self.ownShip:
-            # quick access to ownShip
+        if not self.ownship:
+            # quick access to ownship
             ownship = Ownship(self,
                               'OS',
                               preferences.AFFILIATION_FRIENDLY,
@@ -128,7 +130,8 @@ class Map(QGraphicsView):
                               osCourse)
              
             self.truthEntities['OS'] = ownship
-            self.ownShip = ownship
+            self.tacticalLayers['Ownship'] = ownship
+            self.ownship = ownship
             self.toolbox.createOwnshipMenu()
              
             self.zoomOwnship()
@@ -186,8 +189,8 @@ class Map(QGraphicsView):
 #         for contact in self.cruseData.getContacts():
 # 
 #             contactId = contact.getId()
-#             latLon = self.mapController.vincentyDirect(self.ownShip.lat,
-#                                                        self.ownShip.lon,
+#             latLon = self.mapController.vincentyDirect(self.ownship.lat, 
+#                                                        self.ownship.lon, 
 #                                                        contact.getBearing(), 
 #                                                        contact.getRange())  #4572m = 5kyds            
 #             xy = self.mapController.toCanvasCoordinates(latLon.x(), latLon.y())
@@ -263,8 +266,7 @@ class Map(QGraphicsView):
         pass
 
     def loadLayers(self):
-    
-        self.navChartTemplates = NavChartsTemplateLayer(self)
+
 #         self.mapController.addNavChartTemplate(self.navChartTemplates)                 
                 
 #         osm2 = MTSLayer(self, 'Land', 'OSM-WMS', 9, False, 1.0)
@@ -362,13 +364,13 @@ class Map(QGraphicsView):
             endX = event.pos().x()
             endY = event.pos().y()
             self.rulerLayer.updateLine(endX, endY)
-        elif self.ownShip:
-            bearing = self.mapController.angleBetweenTwoPoints(radians(self.ownShip.lat),
-                                                               radians(self.ownShip.lon),
+        elif self.ownship:
+            bearing = self.mapController.angleBetweenTwoPoints(radians(self.ownship.lat),
+                                                               radians(self.ownship.lon),
                                                                radians(mouseLat),
                                                                radians(mouseLon))
-            distance = self.mapController.distanceBetweenTwoPoints(self.ownShip.lat,
-                                                                   self.ownShip.lon,
+            distance = self.mapController.distanceBetweenTwoPoints(self.ownship.lat,
+                                                                   self.ownship.lon,
                                                                    mouseLat,
                                                                    mouseLon)
             self.mainWindow.updateLocationLabel(mouseLat, mouseLon, bearing, distance)
@@ -532,14 +534,14 @@ class Map(QGraphicsView):
         self.vectorZoom = 8
         self.rasterZoom = 8
         while self.vectorZoom < 9:
-            self.mapController.moveToGeographicLocation(self.ownShip.lat, self.ownShip.lon)
+            self.mapController.moveToGeographicLocation(self.ownship.lat, self.ownship.lon)
             self.vectorZoom *= 1.1
             self.mapController.updateZoom()
 
-        self.ownShip.update(self.ownShip.x,
-                            self.ownShip.y,
-                            self.ownShip.speed,
-                            self.ownShip.course)
+        self.ownship.update(self.ownship.x,
+                            self.ownship.y,
+                            self.ownship.speed,
+                            self.ownship.course)
         self.scene.update()
 
     ''' ------------------------------------------------------------------------------------------------

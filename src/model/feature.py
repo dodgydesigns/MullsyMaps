@@ -6,7 +6,7 @@ import preferences
 
 class Feature(QGraphicsSvgItem):
     '''
-    This represents a Web Feature Service (WFS) item on the view. It consists of an icon (SVG) that when clicked, 
+    This represents a Web Feature Service (WFS) item on the map. It consists of an icon (SVG) that when clicked,
     displays a dialog with some information about the Feature.
     '''
     def __init__(self, view, layerName, meta, lat, lon, iconPath, iconScale):

@@ -11,12 +11,11 @@ from PySide2.QtWidgets import QFrame, QWidget, QSpacerItem, \
 from graphics.paint.annotation_tool import PaintToolBox
 import preferences
 
-
 APP_PATH = os.getcwd()
 WIDTH = 400
 HEIGHT = 600
 
-SPIN_BOX_STYLE = """
+SPINBOXSTYLE = """
                 QSpinBox::up-button { width: 32px; }
                 QSpinBox::down-button { width: 32px; }
 """
@@ -33,19 +32,20 @@ class CustomTreeItem(QTreeWidgetItem):
     """
     Custom QTreeWidgetItem with Widgets
     """
+
     def __init__(self, toolbox, parent, name):
         """
         parent (QTreeWidget) : Item's QTreeWidget parent.
         """
         super(CustomTreeItem, self).__init__(parent)
-        
+
         self.opacity = 1
         self.visible = True
         self.zLevel = 1
-        
+
         itemLayout = QHBoxLayout()
         itemLayout.setSpacing(0)
-        itemLayout.setMargin(0) 
+        itemLayout.setMargin(0)
         itemWidget = QWidget()
         itemWidget.setFixedHeight(30)
         itemWidget.setFixedWidth(WIDTH - 100)
@@ -54,13 +54,13 @@ class CustomTreeItem(QTreeWidgetItem):
         self.check.setText('{}'.format(name))
         self.check.setFixedWidth(200)
         itemLayout.addWidget(self.check)
-        
+
         self.opacitySpinBox = QSpinBox()
         self.opacitySpinBox.setMaximum(100)
         self.opacitySpinBox.setMinimum(0)
         self.opacitySpinBox.setSingleStep(10)
         self.opacitySpinBox.setValue(100)
-        self.opacitySpinBox.setStyleSheet(SPIN_BOX_STYLE)
+        self.opacitySpinBox.setStyleSheet(SPINBOXSTYLE)
         itemLayout.addWidget(self.opacitySpinBox)
 
         upDownWidget = QWidget()
@@ -84,18 +84,18 @@ class CustomTreeItem(QTreeWidgetItem):
         itemLayout.addWidget(upDownWidget)
 
         self.treeWidget().setItemWidget(self, 0, itemWidget)
-        
+
         self.check.toggled.connect(lambda: toolbox.showHideLayers(self, self.check.isChecked()))
         self.opacitySpinBox.valueChanged.connect(lambda: toolbox.changeLayerOpacity(self, self.opacitySpinBox.value()))
         self.downButton.clicked.connect(lambda: toolbox.moveLayerDown(self))
         self.upButton.clicked.connect(lambda: toolbox.moveLayerUp(self))
-        
+
     def setChecked(self, checked):
         self.check.setCheckState(checked)
-        
+
     def setOpacityValue(self, opacity):
         self.opacitySpinBox.setValue(100 * opacity)
-        
+
     def setZLevelValue(self, zLevel):
         self.parent().insertChild(zLevel, self)
 
@@ -104,34 +104,28 @@ class Toolbox(QWidget):
     """
     Holder for the tabBox widget.
     """
-    def __init__(self, view):
+
+    def __init__(self, map):
         super(Toolbox, self).__init__()
 
-        self.view = view
+        self.map = map
         layout = QVBoxLayout()
-        self.tabBox = TabBox(self, view)
+        self.tabBox = TabBox(self, map)
         self.tabBox.setStyleSheet('''QWidget { background: transparent; }''')
         layout.addWidget(self.tabBox)
         layout.addStretch(-1)
         self.setLayout(layout)
         self.setFixedWidth(WIDTH)  # Limits horizontal size to enable map interaction on right.
 
-        self.tacticalPictureTree = None
-        self.annotationsTree = None
-        self.geospatialTree = None
-        self.oceonographicTree = None
-        self.meteorologicalTree = None
-        self.navigationTree = None
-
     def updateEntries(self):
         self.tabBox.updateEntries()
-        
+
     def createOwnshipMenu(self):
         self.tabBox.createOwnshipMenu()
-        
+
     def createAnnotationsMenu(self):
         self.tabBox.createAnnotationsMenu()
- 
+
     def paintEvent(self, event):
         """ Allows transparent widgets. """
         painter = QPainter(self)
@@ -139,30 +133,41 @@ class Toolbox(QWidget):
 
 
 class TabBox(QTabWidget):
-    
+
     def __init__(self, parent, view):
-        
+
         super(TabBox, self).__init__()
         self.currentChanged.connect(self.tabChange)
-        
+
         self.view = view
         self.parent = parent
-        
+
         self.layersTab = QWidget()
         self.annotationsTab = QWidget()
         self.toolsWidget = None
         self.annotationsTree = None
-        
+        self.tacticalPictureTree = None
+        self.annotationsTree = None
+        self.geospatialTree = None
+        self.oceonographicTree = None
+        self.meteorologicalTree = None
+        self.navigationTree = None
+        self.ownshipMenu = None
+        self.ownshipEntity = None
+        self.contactsMenu = None
+        self.layersLayout = QVBoxLayout()
+
         self.addTab(self.layersTab, 'Layers')
         self.addTab(self.annotationsTab, 'Annotations')
         self.layersTree = QTreeWidget(self.layersTab)
-        self.enableLayers(['Contacts', 'Tactical Picture', 'Landmarks', 'Navigation', 'Annotations',
-                           'Geospatial', 'Oceanographic', 'Meteorological'])
-        
+        self.enableLayers(
+            ['Contacts', 'Tactical Picture', 'Landmarks', 'Navigation', 'Annotations', 'Geospatial', 'Oceanographic',
+             'Meteorological'])
+
         self.createOwnshipMenu()
         self.createMenus()
-                
-        self.layersTree.setFixedWidth(WIDTH) 
+
+        self.layersTree.setFixedWidth(WIDTH)
         self.layersTree.setFixedHeight(HEIGHT - 20)
         self.layersTree.setStyleSheet('''
                                         QTreeView::branch:has-siblings:!adjoins-item {
@@ -184,16 +189,8 @@ class TabBox(QTabWidget):
                                             border-image: none;
                                             image: url(''' + preferences.ICON_PATH + '''branch-open.png);
                                         }
-                                        QTreeView::item { color: white; }
+                                        QTreeView::item { color: white }
         ''')
-
-        self.ownshipMenu = None
-        self.tacticalPictureTree = None
-        self.annotationsTree = None
-        self.geospatialTree = None
-        self.oceonographicTree = None
-        self.meteorologicalTree = None
-        self.navigationTree = None
 
         self.setWindowTitle("Toolbox")
         closeButton = QPushButton('')
@@ -211,14 +208,14 @@ class TabBox(QTabWidget):
             self.view.currentlyDrawing = False
             self.updateAnnotationsLayers()
             self.parent.setFixedWidth(WIDTH)
-        
+
     def closeToolBox(self):
         self.view.mainWindow.showHideToolBox()
-        
+
     def paintEvent(self, _):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(0, 0, 0, 15))
-        
+
     def updateEntries(self):
         """
         Update the trees that contain suspected and known entities.
@@ -233,22 +230,22 @@ class TabBox(QTabWidget):
         self.tacticalPictureTree.setText(0, 'Tactical Picture')
         if 'Tactical Picture' not in visibleLayers:
             self.tacticalPictureTree.setHidden(True)
-        
+
         self.annotationsTree = QTreeWidgetItem(self.layersTree)
         self.annotationsTree.setText(0, 'Annotations')
         if 'Annotations' not in visibleLayers:
             self.annotationsTree.setHidden(True)
-            
+
         self.geospatialTree = QTreeWidgetItem(self.layersTree)
         self.geospatialTree.setText(0, 'Geospatial')
         if 'Geospatial' not in visibleLayers:
             self.geospatialTree.setHidden(True)
-            
+
         self.oceonographicTree = QTreeWidgetItem(self.layersTree)
         self.oceonographicTree.setText(0, 'Oceanographic')
         if 'Oceanographic' not in visibleLayers:
             self.oceonographicTree.setHidden(True)
-            
+
         self.meteorologicalTree = QTreeWidgetItem(self.layersTree)
         self.meteorologicalTree.setText(0, 'Meteorological')
         if 'Meteorological' not in visibleLayers:
@@ -258,36 +255,36 @@ class TabBox(QTabWidget):
         self.navigationTree.setText(0, 'Navigation')
         self.layersTree.addTopLevelItem(self.navigationTree)
         if 'Navigation' not in visibleLayers:
-            self.navigationTree.setHidden(True)    
-            
+            self.navigationTree.setHidden(True)
+
         header = self.layersTree.header()
         header.setSectionResizeMode(QHeaderView.ResizeToContents)
-        
+
     def createOwnshipMenu(self):
 
-        if self.view.ownShip is not None:
-            self.ownshipEntity = self.view.ownShip
-            
+        if self.view.ownship is not None:
+            self.ownshipEntity = self.view.ownship
+
             ownshipEntry = QTreeWidgetItem(self.ownshipMenu)
-            ownshipEntry.setText(0, 'All Layers')  
-            ownshipEntry.setCheckState(0, Qt.Checked if self.ownshipEntity.visible else Qt.Unchecked) 
+            ownshipEntry.setText(0, 'All Layers')
+            ownshipEntry.setCheckState(0, Qt.Checked if self.ownshipEntity.visible else Qt.Unchecked)
             self.layersTree.itemClicked.connect(self.showHideLayers)
-    
+
             # Qt.ItemIsSelectable | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled
             for layerName, layer in self.ownshipEntity.graphicsLayers.items():
                 child = QTreeWidgetItem(ownshipEntry)
                 child.setFlags(child.flags() | Qt.ItemIsDragEnabled)
-                child.setText(0, layerName) 
+                child.setText(0, layerName)
                 child.setCheckState(0, Qt.Checked if layer.visible else Qt.Unchecked)
-    
+
     def createContactsMenu(self):
-        
+
         self.ownshipMenu = QTreeWidgetItem(self.tacticalPictureTree)
-        self.ownshipMenu.setText(0, 'Ownship') 
-                        
+        self.ownshipMenu.setText(0, 'Ownship')
+
         self.contactsMenu = QTreeWidgetItem(self.tacticalPictureTree)
-        self.contactsMenu.setText(0, 'Contacts')        
-                              
+        self.contactsMenu.setText(0, 'Contacts')
+
     def createGisMenu(self):
 
         for key, layer in self.view.mapController.gisLayers.items():
@@ -301,19 +298,19 @@ class TabBox(QTabWidget):
             gisLayer.setChecked(Qt.Checked if layer.visible else Qt.Unchecked)
             gisLayer.setOpacityValue(layer.opacity)
             gisLayer.setZLevelValue(layer.zLevel)
-            
+
         for key, layer in self.view.mapController.atmosphericLayers.items():
             gisLayer = CustomTreeItem(self, self.atmosphericTree, key)
             gisLayer.setChecked(Qt.Checked if layer.visible else Qt.Unchecked)
             gisLayer.setZLevelValue(layer.zLevel)
-            
+
         for key, layer in self.view.mapController.navigationLayers.items():
             gisLayer = CustomTreeItem(self, self.navigationTree, key)
             gisLayer.setChecked(Qt.Checked if layer.visible else Qt.Unchecked)
             gisLayer.setZLevelValue(layer.zLevel)
-                    
+
     def updateGisLayers(self):
-        
+
         for cb in [self.drawGisCheckboxes(key) for key in self.view.mapController.gisLayers]:
             self.gisLayersLayout.addWidget(cb)
 
@@ -322,10 +319,10 @@ class TabBox(QTabWidget):
 
         for cb in [self.drawGisCheckboxes(key) for key in self.mapController.atmosphericLayers]:
             self.gisLayersLayout.addWidget(cb)
-            
+
         for cb in [self.drawGisCheckboxes(key) for key in self.mapController.navigationLayers]:
             self.gisLayersLayout.addWidget(cb)
-            
+
     def createTacticalMenu(self):
 
         for key, layer in self.view.tacticalLayers.items():
@@ -334,13 +331,13 @@ class TabBox(QTabWidget):
             tacticalLayer.setText(0, key)
             tacticalLayer.setCheckState(0, Qt.Checked if layer.visible else Qt.Unchecked)
             self.layersTree.itemClicked.connect(self.showHideLayers)
-    
+
     def createAnnotationsMenu(self):
         if len(self.view.annotationLayers.layers) == 0:
             self.createNewAnnotationLayer()
         else:
             self.enableActiveAnnotationLayer()
-            
+
     def createNewAnnotationLayer(self):
         """
         Drawing tool
@@ -351,7 +348,7 @@ class TabBox(QTabWidget):
 
         toolsDock = QDockWidget("COP Annotator", self)
         toolsDock.topLevelChanged.connect(lambda: self.setFloatWindow(toolsDock))
-        toolsDock.setFeatures(QDockWidget.DockWidgetFloatable | 
+        toolsDock.setFeatures(QDockWidget.DockWidgetFloatable |
                               QDockWidget.DockWidgetMovable)
         toolsDock.setFloating(False)
 
@@ -362,11 +359,11 @@ class TabBox(QTabWidget):
         self.view.annotationLayers.layers[layerName].initialise()
         self.view.annotationLayers.layers[layerName].setMouseTracking(True)
         self.view.annotationLayers.layers[layerName].setFocusPolicy(Qt.StrongFocus)
-        
+
         toolsWidget = PaintToolBox(self, self.view.annotationLayers.layers['Local-1'])
         toolsDock.setWidget(toolsWidget)
         paintWindow.addDockWidget(Qt.RightDockWidgetArea, toolsDock)
-                             
+
         self.annotationsTab.setLayout(paintLayout)
         self.annotationsTab.setAttribute(Qt.WA_TranslucentBackground)
 
@@ -377,17 +374,17 @@ class TabBox(QTabWidget):
 
         toolsDock = QDockWidget("COP Annotator", self)
         toolsDock.topLevelChanged.connect(lambda: self.setFloatWindow(toolsDock))
-        toolsDock.setFeatures(QDockWidget.DockWidgetFloatable | 
+        toolsDock.setFeatures(QDockWidget.DockWidgetFloatable |
                               QDockWidget.DockWidgetMovable)
         toolsDock.setFloating(False)
 
         toolsWidget = PaintToolBox(self, self.view.annotationLayers.layers[self.view.annotationLayers.activeLayerName])
         toolsDock.setWidget(toolsWidget)
         paintWindow.addDockWidget(Qt.RightDockWidgetArea, toolsDock)
-                             
+
         self.annotationsTab.setLayout(paintLayout)
-        self.annotationsTab.setAttribute(Qt.WA_TranslucentBackground)       
-        
+        self.annotationsTab.setAttribute(Qt.WA_TranslucentBackground)
+
     def setFloatWindow(self, td):
         td.setStyleSheet('''QDockWidget {background: rgb(255, 255, 255); 
                                          color: rgb(0, 0, 0);}''')
@@ -395,14 +392,14 @@ class TabBox(QTabWidget):
         layerName = 'Local-{}'.format(self.view.annotationLayers.annotationLayerCount)
         toolsWidget = PaintToolBox(self.view.annotationLayers.layers[layerName])
         td.setWidget(toolsWidget)
-        
+
         self.createNewAnnotationLayer()
 
     def updateAnnotationsLayers(self):
         """ Make sure all the annotation layers are visible in the menu tree. """
         if not self.annotationsTree:
             return
-        
+
         # Clear the contents of the contact trees to keep synchronised with model
         for i in reversed(range(self.annotationsTree.childCount())):
             self.annotationsTree.removeChild(self.annotationsTree.child(i))
@@ -413,27 +410,26 @@ class TabBox(QTabWidget):
             annotationEntry.setText(0, key)
             annotationEntry.setCheckState(0, Qt.Checked if layer.visible else Qt.Unchecked)
             self.layersTree.itemClicked.connect(self.showHideLayers)
-    
+
     def disableAnnotationLayers(self):
         """ Stop drawing. """
         for layer in self.view.annotationLayers.layers.values():
             layer.disableAnnotations()
-             
+
     def createMenus(self):
-        
-        layersLayout = QVBoxLayout()
+
         self.createContactsMenu()
         self.createGisMenu()
         self.createTacticalMenu()
-        
+
         verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        layersLayout.addItem(verticalSpacer)
-        self.layersTab.setLayout(layersLayout)
-        
+        self.layersLayout.addItem(verticalSpacer)
+        self.layersTab.setLayout(self.layersLayout)
+
     def clearTacticalLayer(self):
         """ Delete all user drawings. """
         self.view.tacticalLayers.graphics.clear()
-               
+
     def updateContactsTrees(self):
         """
         This propagates the contact tree with all the contacts.
@@ -441,7 +437,7 @@ class TabBox(QTabWidget):
         # Clear the contents of the contact trees to keep synchronised with model
         for i in reversed(range(self.contactsMenu.childCount())):
             self.contactsMenu.removeChild(self.contactsMenu.child(i))
-            
+
         for entityDesignation, entity in self.view.contacts.items():
             if entityDesignation != self.view.ownShip.designation:
                 entityEntry = QTreeWidgetItem(self.contactsMenu)
@@ -449,33 +445,33 @@ class TabBox(QTabWidget):
                 entityEntry.setCheckState(0, Qt.Checked if entity.visible else Qt.Unchecked)
                 entityEntry.setFlags(entityEntry.flags() | Qt.ItemIsTristate | Qt.ItemIsUserCheckable)
                 self.layersTree.itemClicked.connect(self.showHideLayers)
-    
+
                 for layerName, layer in entity.graphicsLayers.items():
                     child = QTreeWidgetItem(entityEntry)
                     child.setFlags(child.flags() | Qt.ItemIsTristate | Qt.ItemIsUserCheckable)
-                    child.setText(0, layerName) 
+                    child.setText(0, layerName)
                     child.setCheckState(0, Qt.Checked if layer.visible else Qt.Unchecked)
-        
+
     def moveLayerUp(self, item):
         """
         Moves tree items up in the list and raises their Z-Level.
         """
         selectionRow = self.layersTree.indexFromItem(item).row()
         parent = item.parent()
-        if selectionRow > 0:             
+        if selectionRow > 0:
             clickedIndex = parent.indexOfChild(item)
             newIndex = clickedIndex - 1
-            
+
             taken = {}
-            for childIndex in range(parent.childCount()-1, -1, -1):
+            for childIndex in range(parent.childCount() - 1, -1, -1):
                 taken[childIndex] = parent.takeChild(childIndex)
-                
+
             clicked = taken[clickedIndex]
             above = taken[newIndex]
-            
+
             taken[newIndex] = clicked
             taken[clickedIndex] = above
-            
+
             od = collections.OrderedDict(sorted(taken.items()))
             for index, child in od.items():
                 newCustomTreeItem = CustomTreeItem(self, parent, child.check.text())
@@ -486,7 +482,7 @@ class TabBox(QTabWidget):
                     self.changeLayerZLevel(child, parent, -1)
                 elif index == newIndex:
                     self.changeLayerZLevel(child, parent, 1)
-                else:        
+                else:
                     self.changeLayerZLevel(child, parent, 0)
 
     def moveLayerDown(self, item):
@@ -495,21 +491,21 @@ class TabBox(QTabWidget):
         """
         selectionRow = self.layersTree.indexFromItem(item).row()
         parent = item.parent()
-        
-        if selectionRow < parent.childCount():             
+
+        if selectionRow < parent.childCount():
             clickedIndex = parent.indexOfChild(item)
             newIndex = clickedIndex + 1
-            
+
             taken = {}
-            for childIndex in range(parent.childCount()-1, -1, -1):
+            for childIndex in range(parent.childCount() - 1, -1, -1):
                 taken[childIndex] = parent.takeChild(childIndex)
-                
+
             clicked = taken[clickedIndex]
             above = taken[newIndex]
-            
+
             taken[newIndex] = clicked
             taken[clickedIndex] = above
-            
+
             od = collections.OrderedDict(sorted(taken.items()))
             for index, child in od.items():
                 newCustomTreeItem = CustomTreeItem(self, parent, child.check.text())
@@ -520,9 +516,9 @@ class TabBox(QTabWidget):
                     self.changeLayerZLevel(child, parent, 1)
                 elif index == newIndex:
                     self.changeLayerZLevel(child, parent, -1)
-                else:        
+                else:
                     self.changeLayerZLevel(child, parent, 0)
-                        
+
     def showHideLayers(self, item, checked):
         """
         Show and hide layers.
@@ -544,7 +540,7 @@ class TabBox(QTabWidget):
                 if item.checkState(0) == Qt.Checked:
                     self.view.annotationLayers.layers[item.text(0)].showHide('show')
                 elif item.checkState(0) == Qt.Unchecked:
-                    self.view.annotationLayers.layers[item.text(0)].showHide('hide')                
+                    self.view.annotationLayers.layers[item.text(0)].showHide('hide')
             elif item.parent().text(0) == 'Geospatial':
                 if checked:
                     self.view.mapController.gisLayers[item.check.text()].showHide('show')
@@ -561,7 +557,7 @@ class TabBox(QTabWidget):
                 if item.checkState(0) == Qt.Checked:
                     self.view.contacts[item.parent().text(0)].showHideLayer(item.text(0), 'show')
                 elif item.checkState(0) == Qt.Unchecked:
-                    self.view.contacts[item.parent().text(0)].showHideLayer(item.text(0), 'hide')                                        
+                    self.view.contacts[item.parent().text(0)].showHideLayer(item.text(0), 'hide')
 
             if item.parent().parent() is not None:
                 # Show/Hide ownShip or ownShip layer
@@ -576,13 +572,13 @@ class TabBox(QTabWidget):
                         self.view.contacts[int(item.parent().text(0))].showHide(item.text(0), 'show')
                     elif item.checkState(0) == Qt.Unchecked:
                         self.view.contacts[int(item.parent().text(0))].showHide(item.text(0), 'hide')
-     
+
                 if item.parent().text(0) == 'Contacts':
                     if item.checkState(0) == Qt.Checked:
                         self.view.contacts[int(item.text(0))].showHide('All Layers', 'show')
                     else:
-                        self.view.contacts[int(item.text(0))].showHide('All Layers', 'hide') 
-                        
+                        self.view.contacts[int(item.text(0))].showHide('All Layers', 'hide')
+
     def changeLayerOpacity(self, item, opacity):
         """ Change the transparency of a layer. """
         if item.parent() is not None:

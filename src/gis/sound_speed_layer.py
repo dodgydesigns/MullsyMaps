@@ -25,7 +25,7 @@ class SoundSpeedLayer():
         self.depth = 0
         self.maxDepth = 0
         self.graphicsGroup = QGraphicsItemGroup(scene=self.view.scene)
-#         self.view.scene.addItem(self.graphicsGroup)
+#         self.map.scene.addItem(self.graphicsGroup)
 #         self.graphicsGroup.setValue(1)
         
         self.visible = True

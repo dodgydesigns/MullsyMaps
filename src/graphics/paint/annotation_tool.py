@@ -314,8 +314,8 @@ class AnnotationCanvas(QLabel):
         controller = view.mapController
         self.toolsConfig = toolsConfig
         
-        self.width = view.canvasWidth - 1
-        self.height = view.canvasHeight - 70
+        self.width = preferences.SCREEN_RESOLUTION.width() - 1
+        self.height = preferences.SCREEN_RESOLUTION.height() - 70
         centre = controller.toGeographicalCoordinates(self.width/2, self.height/2)
         self.lat = centre.x()
         self.lon = centre.y()                

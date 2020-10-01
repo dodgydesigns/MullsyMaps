@@ -132,7 +132,7 @@ class WindowFrame(QWidget):
         """
         super().__init__()
         
-        self.view = None
+        self.map = None
         self.viewInitialise = False
         self.progressUpdateThreadRunning = False
         
@@ -140,9 +140,11 @@ class WindowFrame(QWidget):
         self.progressLabel = QPlainTextEdit()
         self.startRulerButton = QPushButton()
         self.rulerLabel = QLabel('0.00 yd\n0.0 hrs')
-        self.view = Map(self)
-        self.toolbox = self.view.toolbox
-        self.showHideButton = QPushButton('Menu')
+        self.map = Map(self)
+        self.toolbox = self.map.toolbox
+
+        self.menuButton = QPushButton('File')
+        self.layersButton = QPushButton('Layers')
         self.latLonLabel = QLabel('Welcome')
         self.bearingLabel = QLabel('to')
         self.distanceLabel = QLabel('MullsyMaps')
@@ -160,7 +162,7 @@ class WindowFrame(QWidget):
         self.progressLabel.setStyleSheet(""" QPlainTextEdit {font-size: 10px;} """)
 
         layout.addWidget(self.createTopBar(), 0, 0, 1, 0)
-        layout.addWidget(self.view, 1, 0, 1, 0)
+        layout.addWidget(self.map, 1, 0, 1, 0)
         layout.addWidget(self.toolbox, 1, 0, 5, 0)
         layout.addWidget(self.createBottomBar(), 10, 0, 2, 0)
 
@@ -183,9 +185,9 @@ class WindowFrame(QWidget):
         leftMenuLayout.setAlignment(Qt.AlignLeft)
         leftMenuWidget.setLayout(leftMenuLayout)
         
-        self.showHideButton.setFixedHeight(25)
-        self.showHideButton.clicked.connect(self.showHideToolBox)
-        leftMenuLayout.addWidget(self.showHideButton)
+        self.layersButton.setFixedHeight(25)
+        self.layersButton.clicked.connect(self.showHideToolBox)
+        leftMenuLayout.addWidget(self.layersButton)
         
         zoomButton = QPushButton('ZoomOS')
         zoomButton.setFixedHeight(25)
@@ -272,47 +274,47 @@ class WindowFrame(QWidget):
         """
         Change the opacity of the SVG MIL-STD icon part of a contact.
         """
-        self.view.setIconOpacity(opacity/100)
+        self.map.setIconOpacity(opacity / 100)
 
     def createRulerLayer(self, end=None):
         """
         The ruler layer draws a line at each click point. It sums the total length of each line segment and
         determines how long it would take to traverse at current speed.
         """
-        if self.view.rulerLayer.ruleExists:
+        if self.map.rulerLayer.ruleExists:
             self.killRuler()
             
-        self.view.rulerLayer.rulerEnabled = not self.view.rulerLayer.rulerEnabled
-        if self.view.rulerLayer.rulerEnabled:
+        self.map.rulerLayer.rulerEnabled = not self.map.rulerLayer.rulerEnabled
+        if self.map.rulerLayer.rulerEnabled:
             self.startRulerButton.setIcon(QIcon(QPixmap(str(preferences.ICON_PATH) + 'ruler_green.svg')))
-            self.view.rulerLayer.currentlyRuling = True
+            self.map.rulerLayer.currentlyRuling = True
         else:
             self.startRulerButton.setIcon(QIcon(QPixmap(str(preferences.ICON_PATH) + 'ruler.svg')))
             
         if end == 'end':
             self.startRulerButton.setIcon(QIcon(QPixmap(str(preferences.ICON_PATH) + 'ruler_red.svg')))
-            self.view.rulerLayer.ruleExists = True
+            self.map.rulerLayer.ruleExists = True
             
     def killRuler(self):
-        self.view.rulerLayer.clearRulerLines()
+        self.map.rulerLayer.clearRulerLines()
             
         self.updateRulerLabel([])
-        self.view.rulerLayer.ruleExists = False
-        self.view.rulerLayer.rulerEnabled = True
+        self.map.rulerLayer.ruleExists = False
+        self.map.rulerLayer.rulerEnabled = True
         
-        self.view.spirographLayer.clear()
+        self.map.spirographLayer.clear()
         
     def updateRulerLabel(self, lines):
         """ Shows the length of the ruler path and time to navigate at current speed. """
 
         distance = 0
         for line in lines:
-            distance += self.view.mapController.distanceBetweenTwoPoints(line.startLatLon.x(),
-                                                                         line.startLatLon.y(),
-                                                                         line.endLatLon.x(),
-                                                                         line.endLatLon.y())
+            distance += self.map.mapController.distanceBetweenTwoPoints(line.startLatLon.x(),
+                                                                        line.startLatLon.y(),
+                                                                        line.endLatLon.x(),
+                                                                        line.endLatLon.y())
         
-        osSpeedInMetersPerSecond = 0.514444 * self.view.ownShip.speed
+        osSpeedInMetersPerSecond = 0.514444 * self.map.ownship.speed
         distanceInMeters = distance * 0.9144
         timeInSeconds = distanceInMeters / osSpeedInMetersPerSecond
         m, s = divmod(timeInSeconds, 60)
@@ -346,11 +348,11 @@ class WindowFrame(QWidget):
         """
         Change the size of the SVG MIL-STD icon part of a contact.
         """
-        self.view.setIconSize(size)
+        self.map.setIconSize(size)
 
     def zoomOwnship(self):
         """ Move to centre of ownShip and zoom in. """
-        self.view.zoomOwnship()
+        self.map.zoomOwnship()
 
     def updateLocationLabel(self, mouseLat, mouseLon, bearing, distance):
         """
@@ -387,22 +389,22 @@ class WindowFrame(QWidget):
         if self.toolbox.isVisible():
             self.toolbox.hide()
             self.toolbox.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-            self.showHideButton.setText('Menu')
-            self.view.currentlyDrawing = False
+            self.layersButton.setText('Menu')
+            self.map.currentlyDrawing = False
             self.toolbox.tabBox.disableAnnotationLayers()
         else:
             self.toolbox.updateEntries()
             self.toolbox.show()
-            self.showHideButton.setText('Close')
+            self.layersButton.setText('Close')
             self.toolbox.setAttribute(Qt.WA_TransparentForMouseEvents, False)
             self.toolbox.tabBox.setCurrentIndex(0)  # always start with the layers tab.
 
     def doUpdate(self):
         """ Don't want to start creating the COP until we have ownShip. """
-        if self.view is None:
+        if self.map is None:
             self.initUi()
 
-        self.view.update()
+        self.map.update()
 
 
 class ProgressWorker(QThread):

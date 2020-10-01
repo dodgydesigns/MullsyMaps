@@ -138,7 +138,7 @@ class MTSLayer(QWidget):
         """
         for tileKey, pic in self.tilePixmaps.items():
             
-            # only draw if it's in the visible view
+            # only draw if it's in the visible map
             if self.controller.requiredTiles['left'] <= tileKey.x <= self.controller.requiredTiles['right'] and \
                self.controller.requiredTiles['bottom'] <= tileKey.y <= self.controller.requiredTiles['top']:
                 

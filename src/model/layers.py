@@ -366,19 +366,19 @@ class GraphicsLayer():
         
     def addGraphicsObject(self, obj):
         """
-        Add any icons, graphics view items etc. to this layer object.
+        Add any icons, graphics map items etc. to this layer object.
         """
         self.graphicObjects.append(obj)
         
     def removeGraphicsObject(self, obj):
         """
-        Remove an icon, graphics view item etc. from this layer object.
+        Remove an icon, graphics map item etc. from this layer object.
         """
         self.graphicObjects.remove(obj)
         
     def removeAllGraphicsObjects(self):
         """
-        Remove all graphics from the view and graphicsObjectList.
+        Remove all graphics from the map and graphicsObjectList.
         """
         for obj in self.graphicObjects:
             self.view.scene.removeItem(obj)

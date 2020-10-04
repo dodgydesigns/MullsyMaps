@@ -26,16 +26,30 @@ class MTSController():
         self.setZoomBounds()
         self.panLimiter = 1
         self.tileZoomIndex = 1
-        self.gisLayers = {}
+
         self.wfsLayers = {}
-        self.oceanographicLayers = {}
-        self.atmosphericLayers = {}
-        self.navigationLayers = {}
+        self.bathy = {}
+        self.climate = {}
+        self.hydro = {}
+        self.land = {}
+        self.transport = {}
         self.allLayers = []
         self.bounds = {}
 
         self.getLayerParameters()
         self.getTiles()
+
+    def getAllLayers(self):
+
+        layerIdentifiers = []
+        if preferences.USE_GEOSERVER:
+            contents = request.urlopen(
+                'http://mullsysmedia.local:7070/geoserver/gwc/service/wmts?REQUEST=GetCapabilities&service=WMS&version=1.0.0').read()
+            xml = BeautifulSoup(contents, features='xml')
+            for layer in xml.find_all('Layer'):
+                layerList = layer.find_all('Identifier')
+                layerIdentifiers.append(layerList[0].contents[0])
+        return layerIdentifiers
 
     def getLayerParameters(self):
 
@@ -44,7 +58,7 @@ class MTSController():
                 'http://mullsysmedia.local:7070/geoserver/gwc/service/wmts?REQUEST=GetCapabilities&Version=2.0.0&TileMatrixSet=EPSG:4326').read()
             xml = BeautifulSoup(contents, features='xml')
             for layer in xml.find_all('Layer'):
-                if layer.Title.string == 'World_Landmasses':
+                if layer.Title.string == 'World':
 
                     tileMatrixSetLinks = layer.find_all('TileMatrixSetLink')
                     for tileMatrixSetLink in tileMatrixSetLinks:
@@ -76,7 +90,7 @@ class MTSController():
 
     def addNavChartTemplate(self, layer):
         """ Not really a tile layer, just rectangles that outline and label each chart area. """
-        self.navigationLayers['Navigation Chart Outlines'] = layer
+        self.land['Navigation Chart Outlines'] = layer
 
     def addLayer(self, tileLayerGroup, tileLayerName, tileLayer):
         """
@@ -88,15 +102,17 @@ class MTSController():
                               self.canvasSize.width(),
                               self.canvasSize.height())
         tileLayer.show() if tileLayer.visible else tileLayer.hide()
-
-        if tileLayerGroup == 'gisLayers':
-            self.gisLayers[tileLayerName] = tileLayer
-        elif tileLayerGroup == 'oceanographicLayers':
-            self.oceanographicLayers[tileLayerName] = tileLayer
-        elif tileLayerGroup == 'atmosphericLayers':
-            self.atmosphericLayers[tileLayerName] = tileLayer
-        elif tileLayerGroup == 'navigationLayers':
-            self.navigationLayers[tileLayerName] = tileLayer
+        print('{} {}'.format(tileLayerGroup, tileLayerName))
+        if tileLayerGroup == 'bathy':
+            self.bathy[tileLayerName] = tileLayer
+        elif tileLayerGroup == 'climate':
+            self.climate[tileLayerName] = tileLayer
+        elif tileLayerGroup == 'hydro':
+            self.hydro[tileLayerName] = tileLayer
+        elif tileLayerGroup == 'land':
+            self.land[tileLayerName] = tileLayer
+        elif tileLayerGroup == 'transport':
+            self.transport[tileLayerName] = tileLayer
 
         self.allLayers.append(tileLayer)
 

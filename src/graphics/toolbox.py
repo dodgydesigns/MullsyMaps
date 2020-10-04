@@ -145,13 +145,15 @@ class TabBox(QTabWidget):
         self.layersTab = QWidget()
         self.annotationsTab = QWidget()
         self.toolsWidget = None
-        self.annotationsTree = None
         self.tacticalPictureTree = None
         self.annotationsTree = None
-        self.geospatialTree = None
-        self.oceonographicTree = None
-        self.meteorologicalTree = None
-        self.navigationTree = None
+
+        self.bathyTree = None
+        self.climateTree = None
+        self.hydroTree = None
+        self.landTree = None
+        self.transportTree = None
+
         self.ownshipMenu = None
         self.ownshipEntity = None
         self.contactsMenu = None
@@ -160,9 +162,8 @@ class TabBox(QTabWidget):
         self.addTab(self.layersTab, 'Layers')
         self.addTab(self.annotationsTab, 'Annotations')
         self.layersTree = QTreeWidget(self.layersTab)
-        self.enableLayers(
-            ['Contacts', 'Tactical Picture', 'Landmarks', 'Navigation', 'Annotations', 'Geospatial', 'Oceanographic',
-             'Meteorological'])
+        self.enableLayers(['Contacts', 'Tactical Picture', 'Landmarks', 'Navigation', 'Annotations',
+                           'Bathymetric', 'Climate', 'Hydrographic', 'Landmass', 'Transport'])
 
         self.createOwnshipMenu()
         self.createMenus()
@@ -236,26 +237,36 @@ class TabBox(QTabWidget):
         if 'Annotations' not in visibleLayers:
             self.annotationsTree.setHidden(True)
 
-        self.geospatialTree = QTreeWidgetItem(self.layersTree)
-        self.geospatialTree.setText(0, 'Geospatial')
-        if 'Geospatial' not in visibleLayers:
-            self.geospatialTree.setHidden(True)
+        self.bathyTree = QTreeWidgetItem(self.layersTree)
+        self.bathyTree.setText(0, 'Bathymetric')
+        if 'Bathymetric' not in visibleLayers:
+            self.bathyTree.setHidden(True)
 
-        self.oceonographicTree = QTreeWidgetItem(self.layersTree)
-        self.oceonographicTree.setText(0, 'Oceanographic')
-        if 'Oceanographic' not in visibleLayers:
-            self.oceonographicTree.setHidden(True)
+        self.climateTree = QTreeWidgetItem(self.layersTree)
+        self.climateTree.setText(0, 'Climate')
+        if 'Climate' not in visibleLayers:
+            self.climateTree.setHidden(True)
 
-        self.meteorologicalTree = QTreeWidgetItem(self.layersTree)
-        self.meteorologicalTree.setText(0, 'Meteorological')
-        if 'Meteorological' not in visibleLayers:
-            self.meteorologicalTree.setHidden(True)
+        self.hydroTree = QTreeWidgetItem(self.layersTree)
+        self.hydroTree.setText(0, 'Hydrographic')
+        if 'Hydrographic' not in visibleLayers:
+            self.hydroTree.setHidden(True)
 
-        self.navigationTree = QTreeWidgetItem(self.layersTree)
-        self.navigationTree.setText(0, 'Navigation')
-        self.layersTree.addTopLevelItem(self.navigationTree)
-        if 'Navigation' not in visibleLayers:
-            self.navigationTree.setHidden(True)
+        self.landTree = QTreeWidgetItem(self.layersTree)
+        self.landTree.setText(0, 'Landmass')
+        if 'Landmass' not in visibleLayers:
+            self.landTree.setHidden(True)
+
+        self.transportTree = QTreeWidgetItem(self.layersTree)
+        self.transportTree.setText(0, 'Transport')
+        if 'Transport' not in visibleLayers:
+            self.transportTree.setHidden(True)
+
+        # self.nav = QTreeWidgetItem(self.layersTree)
+        # self.landTree.setText(0, 'Navigation')
+        # self.layersTree.addTopLevelItem(self.landTree)
+        # if 'Navigation' not in visibleLayers:
+        #     self.landTree.setHidden(True)
 
         header = self.layersTree.header()
         header.setSectionResizeMode(QHeaderView.ResizeToContents)
@@ -287,40 +298,45 @@ class TabBox(QTabWidget):
 
     def createGisMenu(self):
 
-        for key, layer in self.view.mapController.gisLayers.items():
-            gisLayer = CustomTreeItem(self, self.geospatialTree, key)
+        for key, layer in self.view.mapController.bathy.items():
+            gisLayer = CustomTreeItem(self, self.bathyTree, key)
             gisLayer.setFlags(gisLayer.flags() | Qt.ItemIsDragEnabled)
             gisLayer.setChecked(Qt.Checked if layer.visible else Qt.Unchecked)
             gisLayer.setZLevelValue(layer.zLevel)
 
-        for key, layer in self.view.mapController.oceanographicLayers.items():
-            gisLayer = CustomTreeItem(self, self.oceonographicTree, key)
+        for key, layer in self.view.mapController.climate.items():
+            gisLayer = CustomTreeItem(self, self.climateTree, key)
             gisLayer.setChecked(Qt.Checked if layer.visible else Qt.Unchecked)
             gisLayer.setOpacityValue(layer.opacity)
             gisLayer.setZLevelValue(layer.zLevel)
 
-        for key, layer in self.view.mapController.atmosphericLayers.items():
-            gisLayer = CustomTreeItem(self, self.atmosphericTree, key)
+        for key, layer in self.view.mapController.hydro.items():
+            gisLayer = CustomTreeItem(self, self.hydroTree, key)
             gisLayer.setChecked(Qt.Checked if layer.visible else Qt.Unchecked)
             gisLayer.setZLevelValue(layer.zLevel)
 
-        for key, layer in self.view.mapController.navigationLayers.items():
-            gisLayer = CustomTreeItem(self, self.navigationTree, key)
+        for key, layer in self.view.mapController.land.items():
+            gisLayer = CustomTreeItem(self, self.landTree, key)
+            gisLayer.setChecked(Qt.Checked if layer.visible else Qt.Unchecked)
+            gisLayer.setZLevelValue(layer.zLevel)
+
+        for key, layer in self.view.mapController.transport.items():
+            gisLayer = CustomTreeItem(self, self.transportTree, key)
             gisLayer.setChecked(Qt.Checked if layer.visible else Qt.Unchecked)
             gisLayer.setZLevelValue(layer.zLevel)
 
     def updateGisLayers(self):
 
-        for cb in [self.drawGisCheckboxes(key) for key in self.view.mapController.gisLayers]:
+        for cb in [self.drawGisCheckboxes(key) for key in self.view.mapController.bathy]:
             self.gisLayersLayout.addWidget(cb)
 
-        for cb in [self.drawGisCheckboxes(key) for key in self.mapController.oceanographicLayers]:
+        for cb in [self.drawGisCheckboxes(key) for key in self.mapController.climate]:
             self.gisLayersLayout.addWidget(cb)
 
-        for cb in [self.drawGisCheckboxes(key) for key in self.mapController.atmosphericLayers]:
+        for cb in [self.drawGisCheckboxes(key) for key in self.mapController.hydro]:
             self.gisLayersLayout.addWidget(cb)
 
-        for cb in [self.drawGisCheckboxes(key) for key in self.mapController.navigationLayers]:
+        for cb in [self.drawGisCheckboxes(key) for key in self.mapController.land]:
             self.gisLayersLayout.addWidget(cb)
 
     def createTacticalMenu(self):
@@ -529,11 +545,12 @@ class TabBox(QTabWidget):
                     self.view.tacticalLayers[item.text(0)].showHide('show')
                 elif item.checkState(0) == Qt.Unchecked:
                     self.view.tacticalLayers[item.text(0)].showHide('hide')
+
             elif item.parent().text(0) == 'Navigation':
                 if checked:
-                    self.view.mapController.navigationLayers[item.check.text()].showHide('show')
+                    self.view.mapController.land[item.check.text()].showHide('show')
                 elif item.checkState(0) == Qt.Unchecked:
-                    self.view.mapController.navigationLayers[item.check.text()].showHide('hide')
+                    self.view.mapController.land[item.check.text()].showHide('hide')
             elif item.parent().text(0) == 'Annotations':
                 self.view.annotationLayers.activeLayerName = item.text(0)
                 self.view.annotationLayers.zoomToLayer(item.text(0))
@@ -541,16 +558,32 @@ class TabBox(QTabWidget):
                     self.view.annotationLayers.layers[item.text(0)].showHide('show')
                 elif item.checkState(0) == Qt.Unchecked:
                     self.view.annotationLayers.layers[item.text(0)].showHide('hide')
-            elif item.parent().text(0) == 'Geospatial':
+
+            elif item.parent().text(0) == 'Bathymetric':
                 if checked:
-                    self.view.mapController.gisLayers[item.check.text()].showHide('show')
+                    self.view.mapController.bathy[item.check.text()].showHide('show')
                 elif item.checkState(0) == Qt.Unchecked:
-                    self.view.mapController.gisLayers[item.check.text()].showHide('hide')
-            elif item.parent().text(0) == 'Oceanographic':
+                    self.view.mapController.bathy[item.check.text()].showHide('hide')
+            elif item.parent().text(0) == 'Climate':
                 if checked:
-                    self.view.mapController.oceanographicLayers[item.check.text()].showHide('show')
+                    self.view.mapController.climate[item.check.text()].showHide('show')
                 elif item.checkState(0) == Qt.Unchecked:
-                    self.view.mapController.oceanographicLayers[item.check.text()].showHide('hide')
+                    self.view.mapController.climate[item.check.text()].showHide('hide')
+            elif item.parent().text(0) == 'Hydrographic':
+                if checked:
+                    self.view.mapController.hydro[item.check.text()].showHide('show')
+                elif item.checkState(0) == Qt.Unchecked:
+                    self.view.mapController.hydro[item.check.text()].showHide('hide')
+            elif item.parent().text(0) == 'Landmass':
+                if checked:
+                    self.view.mapController.land[item.check.text()].showHide('show')
+                elif item.checkState(0) == Qt.Unchecked:
+                    self.view.mapController.land[item.check.text()].showHide('hide')
+            elif item.parent().text(0) == 'Transport':
+                if checked:
+                    self.view.mapController.transport[item.check.text()].showHide('show')
+                elif item.checkState(0) == Qt.Unchecked:
+                    self.view.mapController.transport[item.check.text()].showHide('hide')
 
             # Show/Hide entity layer
             elif item.parent().text(0) in self.view.contacts:
@@ -583,21 +616,36 @@ class TabBox(QTabWidget):
         """ Change the transparency of a layer. """
         if item.parent() is not None:
             if item.parent().text(0) == 'Navigation':
-                self.view.mapController.navigationLayers[item.check.text()].setOpacity(opacity)
-            elif item.parent().text(0) == 'Geospatial':
-                self.view.mapController.gisLayers[item.check.text()].setOpacity(opacity)
-            elif item.parent().text(0) == 'Oceanographic':
-                self.view.mapController.oceanographicLayers[item.check.text()].setOpacity(opacity)
+                self.view.mapController.land[item.check.text()].setOpacity(opacity)
+            elif item.parent().text(0) == 'Bathymetric':
+                self.view.mapController.bathy[item.check.text()].setOpacity(opacity)
+            elif item.parent().text(0) == 'Climate':
+                self.view.mapController.climate[item.check.text()].setOpacity(opacity)
+            elif item.parent().text(0) == 'Hydrographic':
+                self.view.mapController.hydro[item.check.text()].setOpacity(opacity)
+            elif item.parent().text(0) == 'Landmass':
+                self.view.mapController.land[item.check.text()].setOpacity(opacity)
+            elif item.parent().text(0) == 'Transport':
+                self.view.mapController.transport[item.check.text()].setOpacity(opacity)
 
     def changeLayerZLevel(self, child, parent, zLevel):
         """ Raise above or lower a layer with respect to the other layers. """
         if parent is not None:
             if parent.text(0) == 'Navigation':
-                layer = self.view.mapController.navigationLayers[child.check.text()]
+                layer = self.view.mapController.land[child.check.text()]
                 layer.setLayerZLevel(layer.zLevel + zLevel)
-            elif parent.text(0) == 'Geospatial':
-                layer = self.view.mapController.gisLayers[child.check.text()]
+            elif parent.text(0) == 'Bathymetric':
+                layer = self.view.mapController.bathy[child.check.text()]
                 layer.setLayerZLevel(layer.zLevel + zLevel)
-            elif parent.text(0) == 'Oceanographic':
-                layer = self.view.mapController.oceanographicLayers[child.check.text()]
+            elif parent.text(0) == 'Climate':
+                layer = self.view.mapController.climate[child.check.text()]
+                layer.setLayerZLevel(layer.zLevel + zLevel)
+            elif parent.text(0) == 'Hydrographic':
+                layer = self.view.mapController.hydro[child.check.text()]
+                layer.setLayerZLevel(layer.zLevel + zLevel)
+            elif parent.text(0) == 'Landmass':
+                layer = self.view.mapController.land[child.check.text()]
+                layer.setLayerZLevel(layer.zLevel + zLevel)
+            elif parent.text(0) == 'Transport':
+                layer = self.view.mapController.transport[child.check.text()]
                 layer.setLayerZLevel(layer.zLevel + zLevel)

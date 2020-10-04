@@ -255,56 +255,50 @@ class Map(QGraphicsView):
         
         # wfsConnection = WFS(self)
         #
-        # self.gisLayers['Australian Airports'] = FeatureLayer(self, wfsConnection.getAirports(), True)
-        # self.gisLayers['Australian Airports'].draw()
+        # self.bathy['Australian Airports'] = FeatureLayer(self, wfsConnection.getAirports(), True)
+        # self.bathy['Australian Airports'].draw()
         #
-        # self.gisLayers['Australian Ports'] = FeatureLayer(self, wfsConnection.getPorts(), True)
-        # self.gisLayers['Australian Ports'].draw()
+        # self.bathy['Australian Ports'] = FeatureLayer(self, wfsConnection.getPorts(), True)
+        # self.bathy['Australian Ports'].draw()
         #
-        # self.gisLayers['Cities'] = FeatureLayer(self, wfsConnection.getCities(), True)
-        # self.gisLayers['Cities'].draw()
+        # self.bathy['Cities'] = FeatureLayer(self, wfsConnection.getCities(), True)
+        # self.bathy['Cities'].draw()
         pass
 
     def loadLayers(self):
 
-#         self.mapController.addNavChartTemplate(self.navChartTemplates)                 
-                
-#         osm2 = MTSLayer(self, 'Land', 'OSM-WMS', 9, False, 1.0)
-#         self.mapController.addLayer('gisLayers', 'OSM', osm2)
-  
-        osmRoads = MTSLayer(self, 'OSM', 'Roads', 8, False, 1.0)
-        self.mapController.addLayer('gisLayers', 'Roads', osmRoads)
-            
-        waterways = MTSLayer(self, 'OSM', 'Waterways', 7, True, 1.0)
-        self.mapController.addLayer('gisLayers', 'Waterways', waterways)
-            
-        water = MTSLayer(self, 'OSM', 'Water', 6, True, 1.0)
-        self.mapController.addLayer('gisLayers', 'Water', water)
+        self.mapController.getAllLayers()
+
+        for layerIdentifier in self.mapController.getAllLayers():
+            workspace = layerIdentifier.split(':')[0]
+            layerName = layerIdentifier.split(':')[1]
+            layer = MTSLayer(self, workspace, layerName, 8, True, 1.0)
+            self.mapController.addLayer(workspace, layerName, layer)
+
+        # osmRoads = MTSLayer(self, 'OSM', 'Roads', 8, False, 1.0)
+        # self.mapController.addLayer('bathy', 'Roads', osmRoads)
+        #
+        # waterways = MTSLayer(self, 'OSM', 'Waterways', 7, True, 1.0)
+        # self.mapController.addLayer('bathy', 'Waterways', waterways)
+        #
+        # water = MTSLayer(self, 'OSM', 'Water', 6, True, 1.0)
+        # self.mapController.addLayer('bathy', 'Water', water)
           
 #         osmLandUse = MTSLayer(self, 'OSM', 'Land_Use', 5, True, 1.0)
-#         self.mapController.addLayer('gisLayers', 'Land Use', osmLandUse)
+#         self.mapController.addLayer('bathy', 'Land Use', osmLandUse)
 #
 #         osmNatural = MTSLayer(self, 'OSM', 'Natural Space', 4, True, 1.0)
-#         self.mapController.addLayer('gisLayers', 'Natural', osmNatural)
+#         self.mapController.addLayer('bathy', 'Natural', osmNatural)
           
-        hillshade = MTSLayer(self, 'Land', 'SRTM30-Coloured-Hillshade', 3, True, 1.0)
-        self.mapController.addLayer('gisLayers', 'Hill Shade', hillshade)
+        # hillshade = MTSLayer(self, 'Land', 'SRTM30-Coloured-Hillshade', 3, True, 1.0)
+        # self.mapController.addLayer('bathy', 'Hill Shade', hillshade)
 
-        austLandmass = MTSLayer(self, 'Land', 'Aust_Landmasses', 3, False, 1.0)
-        self.mapController.addLayer('gisLayers', 'Australia', austLandmass)     
-                       
-        contours = MTSLayer(self, 'Oceanographic', 'World_Bathymetric_Contours', 2, False, 1.0)
-        self.mapController.addLayer('oceanographicLayers', 'Bathymetric Contours', contours)
-             
-        heights = MTSLayer(self, 'Oceanographic', 'World_Bathymetric_Heightmap', 1, True, 1.0)
-        self.mapController.addLayer('oceanographicLayers', 'Bathymetric Heightmap', heights)
+        # contours = MTSLayer(self, 'Oceanographic', 'World_Bathymetric_Contours', 2, False, 1.0)
+        # self.mapController.addLayer('climate', 'Bathymetric Contours', contours)
 
-        benthic = MTSLayer(self, 'Oceanographic', 'Benthic_Substrate', 0, False, 1.0)
-        self.mapController.addLayer('oceanographicLayers', 'Benthic Substrate', benthic)
-        
-        worldLandmass = MTSLayer(self, 'Land', 'World_Landmasses', 98, False, 1.0)
-        self.mapController.addLayer('gisLayers', 'World Land Masses', worldLandmass)
-# 
+        # heights = MTSLayer(self, 'Oceanographic', 'World_Bathymetric_Heightmap', 1, True, 1.0)
+        # self.mapController.addLayer('climate', 'Bathymetric Heightmap', heights)
+
         # chartsArray = ['AUS00111P0', 'AUS00111P1', 'AUS00112P0', 'AUS00113P0', 'AUS00114P0',
         # 'AUS00114P1', 'AUS00116P1', 'AUS00116P2', 'AUS00116P3', 'AUS00116P4', 'AUS00116P5', 'AUS00116P6',
         # 'AUS00116P7', 'AUS00117P0', 'AUS00755P0', 'AUS00331P0', 'AUS00331P1', 'AUS00331P2', 'AUS00331P3',
@@ -313,7 +307,7 @@ class Map(QGraphicsView):
 #         chartsArray = ['AUS00111P0', 'AUS00111P1', 'AUS00112P0', 'AUS00113P0', 'AUS00114P0', 'AUS00114P1', 'AUS00117P0']
 #         for chart in chartsArray:
 #             chartLayer = MTSLayer(self, 'Navigation', chart, 151, False, 1.0)
-#             self.mapController.addLayer('navigationLayers', chart, chartLayer)                     
+#             self.mapController.addLayer('land', chart, chartLayer)
 #             chartLayer.setLayerZLevel(101)
  
         for layer in self.mapController.allLayers:

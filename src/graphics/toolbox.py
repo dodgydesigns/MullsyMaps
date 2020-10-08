@@ -148,6 +148,8 @@ class TabBox(QTabWidget):
         self.tacticalPictureTree = None
         self.annotationsTree = None
 
+        self.austTree = None
+        self.perthTree = None
         self.bathyTree = None
         self.climateTree = None
         self.hydroTree = None
@@ -162,9 +164,10 @@ class TabBox(QTabWidget):
         self.addTab(self.layersTab, 'Layers')
         self.addTab(self.annotationsTab, 'Annotations')
         self.layersTree = QTreeWidget(self.layersTab)
-        self.enableLayers(['Contacts', 'Tactical Picture', 'Landmarks', 'Navigation', 'Annotations',
-                           'Bathymetric', 'Climate', 'Hydrographic', 'Landmass', 'Transport'])
-
+        self.enableLayers(['Contacts', 'Tactical Picture', 'Navigation', 'Annotations',
+                           'Bathymetric', 'Climate', 'Hydrographic', 'Landmass', 'Transport', 'Australia'])
+        # 'Perth',
+        
         self.createOwnshipMenu()
         self.createMenus()
 
@@ -237,6 +240,16 @@ class TabBox(QTabWidget):
         if 'Annotations' not in visibleLayers:
             self.annotationsTree.setHidden(True)
 
+        self.austTree = QTreeWidgetItem(self.layersTree)
+        self.austTree.setText(0, 'Australia')
+        if 'Australia' not in visibleLayers:
+            self.austTree.setHidden(True)
+
+        self.perthTree = QTreeWidgetItem(self.layersTree)
+        self.perthTree.setText(0, 'Perth')
+        if 'Perth' not in visibleLayers:
+            self.perthTree.setHidden(True)
+
         self.bathyTree = QTreeWidgetItem(self.layersTree)
         self.bathyTree.setText(0, 'Bathymetric')
         if 'Bathymetric' not in visibleLayers:
@@ -298,6 +311,18 @@ class TabBox(QTabWidget):
 
     def createGisMenu(self):
 
+        for key, layer in self.view.mapController.aust.items():
+            gisLayer = CustomTreeItem(self, self.austTree, key)
+            gisLayer.setFlags(gisLayer.flags() | Qt.ItemIsDragEnabled)
+            gisLayer.setChecked(Qt.Checked if layer.visible else Qt.Unchecked)
+            gisLayer.setZLevelValue(layer.zLevel)
+
+        for key, layer in self.view.mapController.perth.items():
+            gisLayer = CustomTreeItem(self, self.perthTree, key)
+            gisLayer.setFlags(gisLayer.flags() | Qt.ItemIsDragEnabled)
+            gisLayer.setChecked(Qt.Checked if layer.visible else Qt.Unchecked)
+            gisLayer.setZLevelValue(layer.zLevel)
+
         for key, layer in self.view.mapController.bathy.items():
             gisLayer = CustomTreeItem(self, self.bathyTree, key)
             gisLayer.setFlags(gisLayer.flags() | Qt.ItemIsDragEnabled)
@@ -327,7 +352,13 @@ class TabBox(QTabWidget):
 
     def updateGisLayers(self):
 
-        for cb in [self.drawGisCheckboxes(key) for key in self.view.mapController.bathy]:
+        for cb in [self.drawGisCheckboxes(key) for key in self.mapController.aust]:
+            self.gisLayersLayout.addWidget(cb)
+
+        for cb in [self.drawGisCheckboxes(key) for key in self.mapController.perth]:
+            self.gisLayersLayout.addWidget(cb)
+
+        for cb in [self.drawGisCheckboxes(key) for key in self.mapController.bathy]:
             self.gisLayersLayout.addWidget(cb)
 
         for cb in [self.drawGisCheckboxes(key) for key in self.mapController.climate]:
@@ -559,6 +590,16 @@ class TabBox(QTabWidget):
                 elif item.checkState(0) == Qt.Unchecked:
                     self.view.annotationLayers.layers[item.text(0)].showHide('hide')
 
+            elif item.parent().text(0) == 'Australia':
+                if checked:
+                    self.view.mapController.aust[item.check.text()].showHide('show')
+                elif item.checkState(0) == Qt.Unchecked:
+                    self.view.mapController.aust[item.check.text()].showHide('hide')
+            elif item.parent().text(0) == 'Perth':
+                if checked:
+                    self.view.mapController.perth[item.check.text()].showHide('show')
+                elif item.checkState(0) == Qt.Unchecked:
+                    self.view.mapController.perth[item.check.text()].showHide('hide')
             elif item.parent().text(0) == 'Bathymetric':
                 if checked:
                     self.view.mapController.bathy[item.check.text()].showHide('show')
@@ -617,6 +658,10 @@ class TabBox(QTabWidget):
         if item.parent() is not None:
             if item.parent().text(0) == 'Navigation':
                 self.view.mapController.land[item.check.text()].setOpacity(opacity)
+            elif item.parent().text(0) == 'Australia':
+                self.view.mapController.aust[item.check.text()].setOpacity(opacity)
+            elif item.parent().text(0) == 'Perth':
+                self.view.mapController.perth[item.check.text()].setOpacity(opacity)
             elif item.parent().text(0) == 'Bathymetric':
                 self.view.mapController.bathy[item.check.text()].setOpacity(opacity)
             elif item.parent().text(0) == 'Climate':
@@ -633,6 +678,12 @@ class TabBox(QTabWidget):
         if parent is not None:
             if parent.text(0) == 'Navigation':
                 layer = self.view.mapController.land[child.check.text()]
+                layer.setLayerZLevel(layer.zLevel + zLevel)
+            elif parent.text(0) == 'Australia':
+                layer = self.view.mapController.aust[child.check.text()]
+                layer.setLayerZLevel(layer.zLevel + zLevel)
+            elif parent.text(0) == 'Perth':
+                layer = self.view.mapController.perth[child.check.text()]
                 layer.setLayerZLevel(layer.zLevel + zLevel)
             elif parent.text(0) == 'Bathymetric':
                 layer = self.view.mapController.bathy[child.check.text()]

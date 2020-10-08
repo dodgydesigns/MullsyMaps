@@ -28,6 +28,8 @@ class MTSController():
         self.tileZoomIndex = 1
 
         self.wfsLayers = {}
+        self.aust = {}
+        self.perth = {}
         self.bathy = {}
         self.climate = {}
         self.hydro = {}
@@ -102,8 +104,11 @@ class MTSController():
                               self.canvasSize.width(),
                               self.canvasSize.height())
         tileLayer.show() if tileLayer.visible else tileLayer.hide()
-        print('{} {}'.format(tileLayerGroup, tileLayerName))
-        if tileLayerGroup == 'bathy':
+        if tileLayerGroup == 'aust':
+            self.aust[tileLayerName] = tileLayer
+        elif tileLayerGroup == 'perth':
+            self.perth[tileLayerName] = tileLayer
+        elif tileLayerGroup == 'bathy':
             self.bathy[tileLayerName] = tileLayer
         elif tileLayerGroup == 'climate':
             self.climate[tileLayerName] = tileLayer
@@ -496,8 +501,6 @@ class MTSController():
             if currentTileZoomIndex != floor(self.view.vectorZoom):
                 self.updateZoom()
                 self.view.annotationLayers.updateZoom(scale)
-                self.view.spirographLayer.update()
-                # scale = 1
 
         self.view.update()
 

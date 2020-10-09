@@ -11,9 +11,8 @@ from PySide2.QtWidgets import QFrame, QWidget, QSpacerItem, \
 from graphics.paint.annotation_tool import PaintToolBox
 import preferences
 
-APP_PATH = os.getcwd()
 WIDTH = 400
-HEIGHT = 600
+HEIGHT = 1000
 
 SPINBOXSTYLE = """
                 QSpinBox::up-button { width: 32px; }
@@ -116,6 +115,7 @@ class Toolbox(QWidget):
         layout.addStretch(-1)
         self.setLayout(layout)
         self.setFixedWidth(WIDTH)  # Limits horizontal size to enable map interaction on right.
+        self.setFixedHeight(HEIGHT)
 
     def updateEntries(self):
         self.tabBox.updateEntries()
@@ -167,12 +167,13 @@ class TabBox(QTabWidget):
         self.enableLayers(['Contacts', 'Tactical Picture', 'Navigation', 'Annotations',
                            'Bathymetric', 'Climate', 'Hydrographic', 'Landmass', 'Transport', 'Australia'])
         # 'Perth',
-        
+
         self.createOwnshipMenu()
         self.createMenus()
 
         self.layersTree.setFixedWidth(WIDTH)
         self.layersTree.setFixedHeight(HEIGHT - 20)
+        self.setFixedHeight(HEIGHT)
         self.layersTree.setStyleSheet('''
                                         QTreeView::branch:has-siblings:!adjoins-item {
                                             border-image: url(''' + preferences.ICON_PATH + '''vline.png) 0;

@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 
 # Use GeoServer for map data.
+import pandas
+
 USE_GEOSERVER = True
 GEOSERVER_IP = "192.168.1.112"  # "127.0.0.1"#HOME:"192.168.1.122" #SRCE:"10.57.88.65" #"172.16.130.133"
 GEOSERVER_PORT = "7070"
@@ -92,3 +94,11 @@ TWENTYFIVE_KY_RADIUS = 5
 LOW_SENSITIVITY = 'Low'
 MEDIUM_SENSITIVITY = 'Medium'
 HIGH_SENSITIVITY = 'High'
+
+# Read layer parameters
+layerSettingsXls = pandas.read_excel('../layer settings.xlsx', header=0).to_dict(orient='record')
+layerSettings = {}
+for entry in layerSettingsXls:
+    layerSettings[entry['Name']] = {'enabled': entry['Enabled'],
+                             'zlevel': entry['Z Level'],
+                             'opacity': entry['Opacity']}

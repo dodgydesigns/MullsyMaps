@@ -270,10 +270,19 @@ class Map(QGraphicsView):
         self.mapController.getAllLayers()
 
         for layerIdentifier in self.mapController.getAllLayers():
-            workspace = layerIdentifier.split(':')[0]
-            layerName = layerIdentifier.split(':')[1]
-            layer = MTSLayer(self, workspace, layerName, 8, True, 1.0)
-            self.mapController.addLayer(workspace, layerName, layer)
+            if layerIdentifier in preferences.layerSettings:
+                settings = preferences.layerSettings[layerIdentifier]
+                workspace = layerIdentifier.split(':')[0]
+                layerName = layerIdentifier.split(':')[1]
+                layer = MTSLayer(self,
+                                 workspace,
+                                 layerName,
+                                 settings['zlevel'],
+                                 True if settings['enabled'] else False,
+                                 settings['opacity']/100)
+                self.mapController.addLayer(workspace, layerName, layer)
+                layer.showHide('show' if settings['enabled'] == 'yes' else 'hide')
+                layer.setLayerZLevel(layer.zLevel)
 
         # osmRoads = MTSLayer(self, 'OSM', 'Roads', 8, False, 1.0)
         # self.mapController.addLayer('bathy', 'Roads', osmRoads)
@@ -310,8 +319,7 @@ class Map(QGraphicsView):
 #             self.mapController.addLayer('land', chart, chartLayer)
 #             chartLayer.setLayerZLevel(101)
  
-        for layer in self.mapController.allLayers:
-            layer.setLayerZLevel(layer.zLevel)
+
             
     ''' ------------------------------------------------------------------------------------------------
                                             GRAPHICS FUNCTIONS

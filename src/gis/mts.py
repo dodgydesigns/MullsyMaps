@@ -118,10 +118,10 @@ class MTSLayer(QWidget):
                                 if not os.path.exists(tilePath):
                                     os.makedirs(tilePath)
                                 pic.save(fullTilePath, 'png')
-                                self.view.mainWindow.startProgressUpdateThread()
-                                # print('downloading: {}/{}/{}/{}.png'.format(self.layerName, grab.tileZoomIndex, grab.x, grab.y))
-                            except:
-                                # print('MTS DL error {} -- {}, {}'.format(path, grab.x, grab.y))
+                                # self.view.mainWindow.startProgressUpdateThread()
+                                print('downloading: {}/{}/{}/{}.png'.format(self.layerName, grab.tileZoomIndex, grab.x, grab.y))
+                            except Exception as e:
+                                print('DL error: {} -- {}'.format(path, e))
                                 pass
 
     def paintEvent(self, event):

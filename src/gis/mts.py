@@ -10,7 +10,8 @@ import preferences
 
 TILE_DIMENSION = 256
 
-class TileKey():
+
+class TileKey:
     """ This is used for identifying the required tile and help with caching. """
     def __init__(self, tileZoomIndex, x, y):
     
@@ -36,6 +37,7 @@ class ShowHiddenLayer(QThread):
     def __init__(self):
         QThread.__init__(self)
         self.called = False
+        self.controller = None
 
     def setController(self, controller):
         self.controller = controller
@@ -82,36 +84,54 @@ class MTSLayer(QWidget):
         self.painter = QPainter()
 
     def download(self):
-        if not self.visible: return # check if obscured by another higher z layer -> dont show
+
+        if not self.visible:
+            return  # TODO: check if obscured by another higher z layer -> dont show
         for xTile in range(self.controller.requiredTiles['left'], self.controller.requiredTiles['right']+1):
             for yTile in range(self.controller.requiredTiles['bottom'], self.controller.requiredTiles['top']+1):
-                if self.controller.bounds[self.controller.tileZoomIndex]['MinTileCol'] < xTile < \
-                   self.controller.bounds[self.controller.tileZoomIndex]['MaxTileCol'] and \
-                   self.controller.bounds[self.controller.tileZoomIndex]['MinTileRow'] < yTile < \
-                   self.controller.bounds[self.controller.tileZoomIndex]['MaxTileRow']:
+                layerParameters = self.controller.layerParameters[self.workspace + ':' + self.layerName]
+                # Some layers don't have capabilities details so just use World bounds
+                if len(layerParameters) == 0:
+                    bounds = self.controller.layerParameters['land:World'][str(self.controller.tileZoomIndex)]
+                else:
+                    bounds = layerParameters[str(self.controller.tileZoomIndex)]
+                if bounds['MinTileCol'] < xTile < bounds['MaxTileCol'] and \
+                   bounds['MinTileRow'] < yTile < bounds['MaxTileRow']:
                     grab = TileKey(self.controller.tileZoomIndex, xTile, yTile)
                     if grab not in self.tilePixmaps:
                         if preferences.USE_GEOSERVER:
-                            tilePath = f'{preferences.CACHE_PATH}{os.sep}' + self.layerName + os.sep + str(grab.tileZoomIndex) + os.sep + str(grab.x) + os.sep
+                            tilePath = f'{preferences.CACHE_PATH}{os.sep}' + \
+                                       self.layerName + \
+                                       os.sep + \
+                                       str(grab.tileZoomIndex) + \
+                                       os.sep + \
+                                       str(grab.x) + \
+                                       os.sep
                         else:
-                            tilePath = f'{preferences.DEFAULT_CACHE_PATH}{os.sep}' + self.layerName + os.sep + str(grab.tileZoomIndex) + os.sep + str(grab.x) + os.sep
+                            tilePath = f'{preferences.DEFAULT_CACHE_PATH}{os.sep}' + \
+                                       self.layerName + \
+                                       os.sep + \
+                                       str(grab.tileZoomIndex) + \
+                                       os.sep + \
+                                       str(grab.x) + \
+                                       os.sep
                         fullTilePath = tilePath + str(grab.y) + '.png'
                         if os.path.exists(fullTilePath):
                             self.tilePixmaps[grab] = QPixmap(fullTilePath)
                         elif preferences.USE_GEOSERVER:
-                            path = 'http://{}:{}/geoserver/'.format(preferences.GEOSERVER_IP, preferences.GEOSERVER_PORT) + \
+                            path = 'http://{}:{}/geoserver/'.format(preferences.GEOSERVER_IP,
+                                                                    preferences.GEOSERVER_PORT) + \
                                    'gwc/' + \
                                    'service/' + \
                                    'tms/' + \
                                    '1.0.0/' + \
-                                    self.workspace +':' + \
+                                    self.workspace + ':' + \
                                     self.layerName + \
                                    '@EPSG:4326' + \
                                    '@png' + \
                                    '/{}/{}/{}.png'.format(grab.tileZoomIndex, grab.x, grab.y)
                             try:
                                 contents = request.urlopen(path).read()
-                                img = QImage()
                                 img = QImage.fromData(contents, "PNG")
                                 pic = QPixmap.fromImage(img)
                                 self.tilePixmaps[grab] = pic  
@@ -119,10 +139,12 @@ class MTSLayer(QWidget):
                                     os.makedirs(tilePath)
                                 pic.save(fullTilePath, 'png')
                                 # self.view.mainWindow.startProgressUpdateThread()
-                                print('downloading: {}/{}/{}/{}.png'.format(self.layerName, grab.tileZoomIndex, grab.x, grab.y))
+                                print('downloading: {}/{}/{}/{}.png'.format(self.layerName,
+                                                                            grab.tileZoomIndex,
+                                                                            grab.x,
+                                                                            grab.y))
                             except Exception as e:
                                 print('DL error: {} -- {}'.format(path, e))
-                                pass
 
     def paintEvent(self, event):
         """ Override to allow transparency. """
@@ -144,8 +166,10 @@ class MTSLayer(QWidget):
                 
                 tcX = self.controller.requiredTiles['left']
                 tcY = self.controller.requiredTiles['top']
-                offsetX = self.controller.canvasSize.width()/2 - (self.controller.centrePoint.x() - tcX) * TILE_DIMENSION
-                offsetY = self.controller.canvasSize.height()/2 + (self.controller.centrePoint.y() - (tcY+1)) * TILE_DIMENSION
+                offsetX = self.controller.canvasSize.width()/2 - \
+                          (self.controller.centrePoint.x() - tcX) * TILE_DIMENSION
+                offsetY = self.controller.canvasSize.height()/2 + \
+                          (self.controller.centrePoint.y() - (tcY+1)) * TILE_DIMENSION
                         
                 xPos = (tileKey.x - self.controller.requiredTiles['left']) * TILE_DIMENSION
                 yPos = (self.controller.requiredTiles['top'] - tileKey.y) * TILE_DIMENSION

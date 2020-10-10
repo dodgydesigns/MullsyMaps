@@ -36,30 +36,21 @@ class MTSController():
         self.land = {}
         self.transport = {}
         self.allLayers = []
-        self.bounds = {}
+        self.layerParameters = {}
 
         self.getLayerParameters()
         self.getTiles()
-
-    def getAllLayers(self):
-
-        layerIdentifiers = []
-        if preferences.USE_GEOSERVER:
-            contents = request.urlopen(
-                'http://mullsysmedia.local:7070/geoserver/gwc/service/wmts?REQUEST=GetCapabilities&service=WMS&version=1.0.0').read()
-            xml = BeautifulSoup(contents, features='xml')
-            for layer in xml.find_all('Layer'):
-                layerList = layer.find_all('Identifier')
-                layerIdentifiers.append(layerList[0].contents[0])
-        return layerIdentifiers
 
     def getLayerParameters(self):
 
         if preferences.USE_GEOSERVER:
             contents = request.urlopen(
-                'http://mullsysmedia.local:7070/geoserver/gwc/service/wmts?REQUEST=GetCapabilities&Version=2.0.0&TileMatrixSet=EPSG:4326').read()
+                'http://mullsysmedia.local:7070/geoserver/gwc/service/'
+                'wmts?REQUEST=GetCapabilities&Version=2.0.0&TileMatrixSet=EPSG:4326').read()
             xml = BeautifulSoup(contents, features='xml')
             for layer in xml.find_all('Layer'):
+                layerList = layer.find_all('Identifier')
+                self.layerParameters[layerList[0].contents[0]] = {}
                 if layer.Title.string == 'World':
 
                     tileMatrixSetLinks = layer.find_all('TileMatrixSetLink')
@@ -67,14 +58,15 @@ class MTSController():
                         tileMatrixSetLimits = tileMatrixSetLink.find_all('TileMatrixSetLimits')
                         for tileMatrixSetLimit in tileMatrixSetLimits:
                             tileMatrixLimits = tileMatrixSetLimit.find_all('TileMatrixLimits')
+                            boundsForZoom = {}
                             for tileMatrixLimit in tileMatrixLimits:
                                 zoom = tileMatrixLimit.find('TileMatrix').string.replace('EPSG:4326:', '')
-                                bounds = {}
-                                bounds['MinTileRow'] = int(tileMatrixLimit.find('MinTileRow').string)
-                                bounds['MaxTileRow'] = int(tileMatrixLimit.find('MaxTileRow').string)
-                                bounds['MinTileCol'] = int(tileMatrixLimit.find('MinTileCol').string)
-                                bounds['MaxTileCol'] = int(tileMatrixLimit.find('MaxTileCol').string)
-                                self.bounds[int(zoom)] = bounds
+                                bounds = {'MinTileRow': int(tileMatrixLimit.find('MinTileRow').string),
+                                          'MaxTileRow': int(tileMatrixLimit.find('MaxTileRow').string),
+                                          'MinTileCol': int(tileMatrixLimit.find('MinTileCol').string),
+                                          'MaxTileCol': int(tileMatrixLimit.find('MaxTileCol').string)}
+                                boundsForZoom[zoom] = bounds
+                            self.layerParameters[layerList[0].contents[0]] = boundsForZoom
 
     def setZoomBounds(self):
         """

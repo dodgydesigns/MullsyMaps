@@ -76,6 +76,9 @@ class Map(QGraphicsView):
         self.toolbox = Toolbox(self)
         self.navChartTemplates = NavChartsTemplateLayer(self)
 
+        self.metaDialog = None
+        self.metaDialogProxy = None
+
         self.viewport().installEventFilter(self)
         self.update()
         
@@ -108,8 +111,7 @@ class Map(QGraphicsView):
         self.updateAllGraphicsLayers()
         self.updateOwnship()
 #         self.updateSolutions()
-#         if preferences.getHMIName() == 'OS-CONSOLE':
-#             self.updateTruth()
+#         self.updateTruth()
  
     def updateOwnship(self):
         
@@ -267,9 +269,7 @@ class Map(QGraphicsView):
 
     def loadLayers(self):
 
-        self.mapController.getAllLayers()
-
-        for layerIdentifier in self.mapController.getAllLayers():
+        for layerIdentifier in self.mapController.layerParameters.keys():
             if layerIdentifier in preferences.layerSettings:
                 settings = preferences.layerSettings[layerIdentifier]
                 workspace = layerIdentifier.split(':')[0]
@@ -313,14 +313,13 @@ class Map(QGraphicsView):
         # 'AUS00116P7', 'AUS00117P0', 'AUS00755P0', 'AUS00331P0', 'AUS00331P1', 'AUS00331P2', 'AUS00331P3',
         # 'AUS00332P0', 'AUS00745P0', 'AUS00746P0', 'AUS00752P0', 'AUS00753P0', 'AUS00754P0', 'AUS00756P0',
         # 'AUS00757P0', 'AUS00758P0', 'AUS00759P0', 'AUS00774P0']
-#         chartsArray = ['AUS00111P0', 'AUS00111P1', 'AUS00112P0', 'AUS00113P0', 'AUS00114P0', 'AUS00114P1', 'AUS00117P0']
+#         chartsArray = ['AUS00111P0', 'AUS00111P1', 'AUS00112P0',
+#         'AUS00113P0', 'AUS00114P0', 'AUS00114P1', 'AUS00117P0']
 #         for chart in chartsArray:
 #             chartLayer = MTSLayer(self, 'Navigation', chart, 151, False, 1.0)
 #             self.mapController.addLayer('land', chart, chartLayer)
 #             chartLayer.setLayerZLevel(101)
- 
 
-            
     ''' ------------------------------------------------------------------------------------------------
                                             GRAPHICS FUNCTIONS
         ------------------------------------------------------------------------------------------------ '''

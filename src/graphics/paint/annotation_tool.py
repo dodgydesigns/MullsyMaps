@@ -238,7 +238,7 @@ class AnnotationTools(QWidget):
         self.primaryButton.pressed.connect(lambda: self.chooseColour(self.setPrimaryColour))
         self.secondaryButton.pressed.connect(lambda: self.chooseColour(self.setSecondaryColour))
  
-        # Initialize animation timer.
+        # Initialize animation demoTimer.
         self.timer = QTimer()
         self.timer.timeout.connect(self.canvas.onTimer)
         self.timer.setInterval(100)
@@ -357,7 +357,7 @@ class AnnotationCanvas(QLabel):
 
     def setMode(self, mode):
 
-        # Clean up active timer animations.
+        # Clean up active demoTimer animations.
         self.timerCleanup()
         # Reset mode-specific vars (all)
         self.activeShapeFn = None
@@ -394,7 +394,7 @@ class AnnotationCanvas(QLabel):
 
     def timerCleanup(self):
         if self.timerEvent:
-            # Stop the timer, then trigger cleanup.
+            # Stop the demoTimer, then trigger cleanup.
             timerEvent = self.timerEvent
             self.timerEvent = None
             timerEvent(final=True)

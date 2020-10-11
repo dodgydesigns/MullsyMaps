@@ -1,8 +1,8 @@
-'''
+"""
 Created on 6 Aug. 2020
 
 @author: mullsy
-'''
+"""
 import os
 from pathlib import Path
 
@@ -50,15 +50,13 @@ OWNSHIP = 'OWNSHIP'
 DIMENSION_SEA_SURFACE = 'surface'
 DIMENSION_SUB_SEA_SURFACE = 'sub_surface'
 
-# FUNCTION_PASSENGER = 'passenger'                        #S_SPXMP
-FUNCTION_MERCHANT = 'Merchant A'  # S_SPXM
-FUNCTION_MERCHANT_B = 'Merchant B'  # S_SPXM
-FUNCTION_MERCHANT_C = 'Merchant C'  # S_SPXM
-FUNCTION_WARSHIP = 'Warship A'  # S_SPCL
-# FUNCTION_CARRIER = 'carrier'                            #S_SPCLCV
-FUNCTION_FISHING = 'Fishing A'  # S_SPXF
+FUNCTION_PASSENGER = 'passenger'  # S_SPXMP
+FUNCTION_MERCHANT = 'Merchant'  # S_SPXM
+FUNCTION_WARSHIP = 'Warship'  # S_SPCL
+FUNCTION_CARRIER = 'carrier'  # S_SPCLCV
+FUNCTION_FISHING = 'Fishing'  # S_SPXF
 FUNCTION_SUBMARINE = 'Submarine'  # S_UPSNA
-# FUNCTION_SUB_CONVENTIONAL = 'sub_conventional'          #N_PSCA
+FUNCTION_SUB_CONVENTIONAL = 'sub_conventional'  # N_PSCA
 
 SHIPWRECK = 'WA_Shipwrecks'
 CITY = 'Places'
@@ -95,10 +93,10 @@ LOW_SENSITIVITY = 'Low'
 MEDIUM_SENSITIVITY = 'Medium'
 HIGH_SENSITIVITY = 'High'
 
-# Read layer parameters
+# -------------------------------- Config --------------------------------------
 layerSettingsXls = pandas.read_excel('../layer settings.xlsx', header=0).to_dict(orient='record')
 layerSettings = {}
 for entry in layerSettingsXls:
     layerSettings[entry['Name']] = {'enabled': entry['Enabled'],
-                             'zlevel': entry['Z Level'],
-                             'opacity': entry['Opacity']}
+                                    'zlevel': entry['Z Level'],
+                                    'opacity': entry['Opacity']}

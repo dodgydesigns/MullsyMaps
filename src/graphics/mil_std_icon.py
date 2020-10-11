@@ -1,10 +1,11 @@
-'''
+"""
 Created on 30 Aug. 2018
 
 @author: mullsy
-'''
+"""
 import os
 import preferences
+
 
 class MilStdIcon(object):
     '''
@@ -12,9 +13,9 @@ class MilStdIcon(object):
     Icons are SVG (vectors) so will display and scale nicely.
     '''
     def __init__(self, affiliation, classification):
-        '''
+        """
         Constructor
-        '''
+        """
 
         self.iconPath = str(preferences.ICON_PATH)
 

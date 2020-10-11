@@ -15,7 +15,209 @@ import preferences
 TILE_DIMENSION = 256
 
 
-class MTSController():
+def distanceBetweenTwoPoints(lat1, lon1, lat2, lon2):
+    """
+    Calculates the distance between two points.
+
+    :Parameters:
+      - `pointA: The tuple representing the latitude/longitude for the
+        first point. Latitude and longitude must be in decimal degrees
+      - `pointB: The tuple representing the latitude/longitude for the
+        second point. Latitude and longitude must be in decimal degrees
+    :Returns:
+      The distance
+    :Returns Type:
+      float
+    """
+    # WGS 84
+    a = 6378137.0
+    f = 0.003352810681  # 1/298.25722210
+    b = 6356752.314245  # meters; b = (1 - f)a
+
+    MAX_ITERATIONS = 200
+    CONVERGENCE_THRESHOLD = 1e-12  # .000,000,000,001
+
+    U1 = atan((1 - f) * tan(radians(lat1)))
+    U2 = atan((1 - f) * tan(radians(lat2)))
+    L = radians(lon2 - lon1)
+    Lambda = L
+
+    sinU1 = sin(U1)
+    cosU1 = cos(U1)
+    sinU2 = sin(U2)
+    cosU2 = cos(U2)
+
+    for _ in range(MAX_ITERATIONS):
+        sinLambda = sin(Lambda)
+        cosLambda = cos(Lambda)
+        sinSigma = sqrt((cosU2 * sinLambda) ** 2 +
+                        (cosU1 * sinU2 - sinU1 * cosU2 * cosLambda) ** 2)
+        if sinSigma == 0:
+            return 0.0  # coincident points
+        cosSigma = sinU1 * sinU2 + cosU1 * cosU2 * cosLambda
+        sigma = atan2(sinSigma, cosSigma)
+        sinAlpha = cosU1 * cosU2 * sinLambda / sinSigma
+        cosSqAlpha = 1 - sinAlpha ** 2
+        try:
+            cos2SigmaM = cosSigma - 2 * sinU1 * sinU2 / cosSqAlpha
+        except ZeroDivisionError:
+            cos2SigmaM = 0
+        C = f / 16 * cosSqAlpha * (4 + f * (4 - 3 * cosSqAlpha))
+        LambdaPrev = Lambda
+        Lambda = L + (1 - C) * f * sinAlpha * (sigma + C * sinSigma *
+                                               (cos2SigmaM + C * cosSigma *
+                                                (-1 + 2 * cos2SigmaM ** 2)))
+        if abs(Lambda - LambdaPrev) < CONVERGENCE_THRESHOLD:
+            break  # successful convergence
+    else:
+        return None  # failure to converge
+
+    uSq = cosSqAlpha * (a ** 2 - b ** 2) / (b ** 2)
+    A = 1 + uSq / 16384 * (4096 + uSq * (-768 + uSq * (320 - 175 * uSq)))
+    B = uSq / 1024 * (256 + uSq * (-128 + uSq * (74 - 47 * uSq)))
+    deltaSigma = B * sinSigma * (cos2SigmaM + B / 4 * (cosSigma *
+                                                       (-1 + 2 * cos2SigmaM ** 2) - B / 6 * cos2SigmaM *
+                                                       (-3 + 4 * sinSigma ** 2) * (-3 + 4 * cos2SigmaM ** 2)))
+    s = b * A * (sigma - deltaSigma)
+
+    return s
+
+
+def angleBetweenTwoPoints(lat1, lon1, lat2, lon2):
+    """
+    Calculate the bearing from one location to another.
+    """
+    g = pyproj.Geod(ellps='WGS84')
+    (az12, _, _) = g.inv(lon1, lat1, lon2, lat2)
+
+    return az12
+
+
+def vincentyDirect(phi1, lembda1, alpha12, s):
+    """
+    Returns the lat and long of projected point and reverse azimuth
+    given a reference point and a distance and azimuth to project.
+    lats, longs and azimuths are passed in decimal degrees
+    Returns QPointF(phi2,  lambda2)
+    Parameters:
+    ===========
+        f: flattening of the ellipsoid
+        a: radius of the ellipsoid, metres
+        phil: latitude of the start point, decimal degrees
+        lembda1: longitude of the start point, decimal degrees
+        alpha12: bearing, decimal degrees
+        s: Distance to endpoint, meters
+    NOTE: This code could have some license issues. It has been obtained
+    from a forum and its license is not clear. I'll reimplement with
+    GPL3 as soon as possible.
+    The code has been taken from
+    https://isis.astrogeology.usgs.gov/IsisSupport/index.php?topic=408.0
+    and refers to (broken link)
+    http://wegener.mechanik.tu-darmstadt.de/GMT-Help/Archiv/att-8710/Geodetic_py
+    """
+    two_sigma_m = 0
+    a = 6378137.0
+    f = 0.003352810681  # 1/298.25722210
+
+    piD4 = atan(1.0)
+    two_pi = piD4 * 8.0
+    phi1 = phi1 * piD4 / 45.0
+    lembda1 = lembda1 * piD4 / 45.0
+    alpha12 = alpha12 * piD4 / 45.0
+    if alpha12 < 0.0:
+        alpha12 = alpha12 + two_pi
+    if alpha12 > two_pi:
+        alpha12 = alpha12 - two_pi
+    b = a * (1.0 - f)
+    TanU1 = (1 - f) * tan(phi1)
+    U1 = atan(TanU1)
+    sigma1 = atan2(TanU1, cos(alpha12))
+    Sinalpha = cos(U1) * sin(alpha12)
+    cosalpha_sq = 1.0 - Sinalpha * Sinalpha
+    u2 = cosalpha_sq * (a * a - b * b) / (b * b)
+    A = 1.0 + (u2 / 16384) * (4096 + u2 * (-768 + u2 * (320 - 175 * u2)))
+    B = (u2 / 1024) * (256 + u2 * (-128 + u2 * (74 - 47 * u2)))
+    # Starting with the approximate value
+    sigma = (s / (b * A))
+    last_sigma = 2.0 * sigma + 2.0  # something impossible
+
+    # Iterate the following 3 equations until no sign change in sigma
+    # two_sigma_m , delta_sigma
+    while abs((last_sigma - sigma) / sigma) > 1.0e-9:
+        two_sigma_m = 2 * sigma1 + sigma
+        delta_sigma = B * sin(sigma) * (cos(two_sigma_m)
+                                        + (B / 4) * (cos(sigma) *
+                                                     (-1 + 2 * pow(cos(two_sigma_m), 2) -
+                                                      (B / 6) * cos(two_sigma_m) *
+                                                      (-3 + 4 * pow(sin(sigma), 2)) *
+                                                      (-3 + 4 * pow(cos(two_sigma_m), 2)))))
+        last_sigma = sigma
+        sigma = (s / (b * A)) + delta_sigma
+    phi2 = atan2((sin(U1) * cos(sigma) +
+                  cos(U1) * sin(sigma) * cos(alpha12)),
+                 ((1 - f) * sqrt(pow(Sinalpha, 2) +
+                                 pow(sin(U1) * sin(sigma) - cos(U1) *
+                                     cos(sigma) * cos(alpha12), 2))))
+    lembda = atan2((sin(sigma) * sin(alpha12)),
+                   (cos(U1) * cos(sigma) -
+                    sin(U1) * sin(sigma) * cos(alpha12)))
+    C = (f / 16) * cosalpha_sq * (4 + f * (4 - 3 * cosalpha_sq))
+    omega = lembda - (1 - C) * f * Sinalpha * \
+            (sigma + C * sin(sigma) * (cos(two_sigma_m) + C * cos(sigma) * (-1 + 2 * pow(cos(two_sigma_m), 2))))
+    lambda2 = lembda1 + omega
+    # alpha21 = atan2(Sinalpha, (-sin(U1) *
+    #                            sin(sigma) + cos(U1) * cos(sigma) * cos(alpha12)))
+    # alpha21 = alpha21 + two_pi / 2.0
+    # if alpha21 < 0.0:
+    #     alpha21 = alpha21 + two_pi
+    # if alpha21 > two_pi:
+    #     alpha21 = alpha21 - two_pi
+    phi2 = phi2 * 45.0 / piD4
+    lambda2 = lambda2 * 45.0 / piD4
+
+    return QPointF(phi2, lambda2)
+
+
+def tileToGeographic(tx, ty, zoom):
+    """
+    :param tx: floating point x coordinate, integer part is the tile number,
+    decimal part is the proportion across that tile
+    :param ty: floating point y coordinate, integer part is the tile number,
+    decimal part is the proportion across that tile
+    :param zoom:
+    :return: Latitude and longitude in degrees
+    :Note: x,y origin is bottom left, (lat, long) origin is map centre
+    i.e. map is TL (85.05112877, -180) BR (-85.05112877, 180)
+            Uses self.zoom as the current zoom level. There are 2^(zoom+1) x tiles and 2^(zoom) y tiles
+    """
+    znx = float(1 << (zoom + 1))
+    lon = tx / znx * 360.0 - 180.0
+
+    zny = float(1 << zoom)
+    lat = ty / zny * 180.0 - 90.0
+
+    return QPointF(lat, lon)
+
+
+def geographicToTile(latitude, longitude, zoom):
+    """
+    :param latitude: world coordinates latitude (degrees)
+    :param longitude: world coordinates longitude (degrees)
+    :param zoom:
+    :return: QPointF(x,y) tile coordinates. Integer part is the tile number,
+    decimal part is the proportion across that tile
+    :Note: x,y origin is bottom left, (lat, long) origin is map centre
+    i.e. map is TL (85.05112877, -180) BR (-85.05112877, 180)
+        Uses self.zoom as the current zoom level. There are 2^(zoom+1) x tiles and 2^(zoom) y tiles
+    """
+    zn = float(1 << zoom)
+    tx = float(longitude + 180.0) / 360.0
+    ty = float(latitude + 90.0) / 180.0
+
+    return QPointF(tx * zn * 2, ty * zn)
+
+
+class MTSController:
 
     def __init__(self, view, canvasSize, centreCoordinate):
 
@@ -26,6 +228,10 @@ class MTSController():
         self.setZoomBounds()
         self.panLimiter = 1
         self.tileZoomIndex = 1
+        self.minZoom = 3
+        self.maxZoom = 19
+        self.centrePoint = None
+        self.requiredTiles = None
 
         self.wfsLayers = {}
         self.aust = {}
@@ -154,12 +360,9 @@ class MTSController():
         Based on the location of the mouse and the current raster zoom level,
         determine the bounds of the tiles that are required to be displayed.
         """
-        self.xTiles = range(0, 2 ** (self.tileZoomIndex + 1))
-        self.yTiles = range(0, 2 ** (self.tileZoomIndex + 0))
-
-        self.centrePoint = self.geographicToTile(self.centreCoordinate.x(),
-                                                 self.centreCoordinate.y(),
-                                                 self.tileZoomIndex)
+        self.centrePoint = geographicToTile(self.centreCoordinate.x(),
+                                            self.centreCoordinate.y(),
+                                            self.tileZoomIndex)
 
         left = trunc(self.centrePoint.x() - self.canvasSize.width() / (TILE_DIMENSION * 2))
         right = trunc(self.centrePoint.x() + self.canvasSize.width() / (TILE_DIMENSION * 2))
@@ -185,7 +388,7 @@ class MTSController():
         offsetX = self.canvasSize.width() / 2 - (self.centrePoint.x() - tcX) * TILE_DIMENSION
         offsetY = self.canvasSize.height() / 2 + (self.centrePoint.y() - (tcY + 1)) * TILE_DIMENSION
 
-        pt = self.geographicToTile(lat, lng, self.tileZoomIndex)
+        pt = geographicToTile(lat, lng, self.tileZoomIndex)
 
         x = ((pt.x() - self.requiredTiles['left']) * TILE_DIMENSION) + offsetX
         y = ((self.requiredTiles['top'] - pt.y() + 1) * TILE_DIMENSION) + offsetY
@@ -204,7 +407,7 @@ class MTSController():
         ptX = ((x - offsetX) / TILE_DIMENSION) + self.requiredTiles['left']
         ptY = 1 + self.requiredTiles['top'] - ((y - offsetY) / TILE_DIMENSION)
 
-        pt = self.tileToGeographic(ptX, ptY, self.tileZoomIndex)
+        pt = tileToGeographic(ptX, ptY, self.tileZoomIndex)
 
         return QPointF(pt.x(), pt.y())
 
@@ -226,169 +429,6 @@ class MTSController():
 
         return info['features'][0]['properties']['Elevation_relative_to_sea_level']
 
-    def distanceBetweenTwoPoints(self, lat1, lon1, lat2, lon2):
-        """
-        Calculates the distance between two points.
-    
-        :Parameters:
-          - `pointA: The tuple representing the latitude/longitude for the
-            first point. Latitude and longitude must be in decimal degrees
-          - `pointB: The tuple representing the latitude/longitude for the
-            second point. Latitude and longitude must be in decimal degrees
-        :Returns:
-          The distance
-        :Returns Type:
-          float
-        """
-        # WGS 84
-        a = 6378137.0
-        f = 0.003352810681  # 1/298.25722210
-        b = 6356752.314245  # meters; b = (1 - f)a
-
-        MAX_ITERATIONS = 200
-        CONVERGENCE_THRESHOLD = 1e-12  # .000,000,000,001
-
-        U1 = atan((1 - f) * tan(radians(lat1)))
-        U2 = atan((1 - f) * tan(radians(lat2)))
-        L = radians(lon2 - lon1)
-        Lambda = L
-
-        sinU1 = sin(U1)
-        cosU1 = cos(U1)
-        sinU2 = sin(U2)
-        cosU2 = cos(U2)
-
-        for _ in range(MAX_ITERATIONS):
-            sinLambda = sin(Lambda)
-            cosLambda = cos(Lambda)
-            sinSigma = sqrt((cosU2 * sinLambda) ** 2 +
-                            (cosU1 * sinU2 - sinU1 * cosU2 * cosLambda) ** 2)
-            if sinSigma == 0:
-                return 0.0  # coincident points
-            cosSigma = sinU1 * sinU2 + cosU1 * cosU2 * cosLambda
-            sigma = atan2(sinSigma, cosSigma)
-            sinAlpha = cosU1 * cosU2 * sinLambda / sinSigma
-            cosSqAlpha = 1 - sinAlpha ** 2
-            try:
-                cos2SigmaM = cosSigma - 2 * sinU1 * sinU2 / cosSqAlpha
-            except ZeroDivisionError:
-                cos2SigmaM = 0
-            C = f / 16 * cosSqAlpha * (4 + f * (4 - 3 * cosSqAlpha))
-            LambdaPrev = Lambda
-            Lambda = L + (1 - C) * f * sinAlpha * (sigma + C * sinSigma *
-                                                   (cos2SigmaM + C * cosSigma *
-                                                    (-1 + 2 * cos2SigmaM ** 2)))
-            if abs(Lambda - LambdaPrev) < CONVERGENCE_THRESHOLD:
-                break  # successful convergence
-        else:
-            return None  # failure to converge
-
-        uSq = cosSqAlpha * (a ** 2 - b ** 2) / (b ** 2)
-        A = 1 + uSq / 16384 * (4096 + uSq * (-768 + uSq * (320 - 175 * uSq)))
-        B = uSq / 1024 * (256 + uSq * (-128 + uSq * (74 - 47 * uSq)))
-        deltaSigma = B * sinSigma * (cos2SigmaM + B / 4 * (cosSigma *
-                                                           (-1 + 2 * cos2SigmaM ** 2) - B / 6 * cos2SigmaM *
-                                                           (-3 + 4 * sinSigma ** 2) * (-3 + 4 * cos2SigmaM ** 2)))
-        s = b * A * (sigma - deltaSigma)
-
-        return s
-
-    def angleBetweenTwoPoints(self, lat1, lon1, lat2, lon2):
-        """
-        Calculate the bearing from one location to another.
-        """
-        g = pyproj.Geod(ellps='WGS84')
-        (az12, _, _) = g.inv(lon1, lat1, lon2, lat2)
-
-        return az12
-
-    def vincentyDirect(self, phi1, lembda1, alpha12, s):
-        """ 
-        Returns the lat and long of projected point and reverse azimuth 
-        given a reference point and a distance and azimuth to project. 
-        lats, longs and azimuths are passed in decimal degrees 
-        Returns QPointF(phi2,  lambda2)
-        Parameters:
-        ===========
-            f: flattening of the ellipsoid
-            a: radius of the ellipsoid, metres
-            phil: latitude of the start point, decimal degrees
-            lembda1: longitude of the start point, decimal degrees
-            alpha12: bearing, decimal degrees
-            s: Distance to endpoint, meters
-        NOTE: This code could have some license issues. It has been obtained 
-        from a forum and its license is not clear. I'll reimplement with
-        GPL3 as soon as possible.
-        The code has been taken from
-        https://isis.astrogeology.usgs.gov/IsisSupport/index.php?topic=408.0
-        and refers to (broken link)
-        http://wegener.mechanik.tu-darmstadt.de/GMT-Help/Archiv/att-8710/Geodetic_py
-        """
-        a = 6378137.0
-        f = 0.003352810681  # 1/298.25722210
-
-        piD4 = atan(1.0)
-        two_pi = piD4 * 8.0
-        phi1 = phi1 * piD4 / 45.0
-        lembda1 = lembda1 * piD4 / 45.0
-        alpha12 = alpha12 * piD4 / 45.0
-        if (alpha12 < 0.0):
-            alpha12 = alpha12 + two_pi
-        if (alpha12 > two_pi):
-            alpha12 = alpha12 - two_pi
-        b = a * (1.0 - f)
-        TanU1 = (1 - f) * tan(phi1)
-        U1 = atan(TanU1)
-        sigma1 = atan2(TanU1, cos(alpha12))
-        Sinalpha = cos(U1) * sin(alpha12)
-        cosalpha_sq = 1.0 - Sinalpha * Sinalpha
-        u2 = cosalpha_sq * (a * a - b * b) / (b * b)
-        A = 1.0 + (u2 / 16384) * (4096 + u2 * (-768 + u2 * \
-                                               (320 - 175 * u2)))
-        B = (u2 / 1024) * (256 + u2 * (-128 + u2 * (74 - 47 * u2)))
-        # Starting with the approximate value
-        sigma = (s / (b * A))
-        last_sigma = 2.0 * sigma + 2.0  # something impossible
-
-        # Iterate the following 3 equations until no sign change in sigma 
-        # two_sigma_m , delta_sigma 
-        while abs((last_sigma - sigma) / sigma) > 1.0e-9:
-            two_sigma_m = 2 * sigma1 + sigma
-            delta_sigma = B * sin(sigma) * (cos(two_sigma_m)
-                                            + (B / 4) * (cos(sigma) *
-                                                         (-1 + 2 * pow(cos(two_sigma_m), 2) -
-                                                          (B / 6) * cos(two_sigma_m) *
-                                                          (-3 + 4 * pow(sin(sigma), 2)) *
-                                                          (-3 + 4 * pow(cos(two_sigma_m), 2)))))
-            last_sigma = sigma
-            sigma = (s / (b * A)) + delta_sigma
-        phi2 = atan2((sin(U1) * cos(sigma) +
-                      cos(U1) * sin(sigma) * cos(alpha12)),
-                     ((1 - f) * sqrt(pow(Sinalpha, 2) +
-                                     pow(sin(U1) * sin(sigma) - cos(U1) *
-                                         cos(sigma) * cos(alpha12), 2))))
-        lembda = atan2((sin(sigma) * sin(alpha12)),
-                       (cos(U1) * cos(sigma) -
-                        sin(U1) * sin(sigma) * cos(alpha12)))
-        C = (f / 16) * cosalpha_sq * (4 + f * (4 - 3 * cosalpha_sq))
-        omega = lembda - (1 - C) * f * Sinalpha * \
-                (sigma + C * sin(sigma) * (cos(two_sigma_m) +
-                                           C * cos(sigma) * (-1 + 2 *
-                                                             pow(cos(two_sigma_m), 2))))
-        lambda2 = lembda1 + omega
-        alpha21 = atan2(Sinalpha, (-sin(U1) *
-                                   sin(sigma) + cos(U1) * cos(sigma) * cos(alpha12)))
-        alpha21 = alpha21 + two_pi / 2.0
-        if alpha21 < 0.0:
-            alpha21 = alpha21 + two_pi
-        if alpha21 > two_pi:
-            alpha21 = alpha21 - two_pi
-        phi2 = phi2 * 45.0 / piD4
-        lambda2 = lambda2 * 45.0 / piD4
-        alpha21 = alpha21 * 45.0 / piD4
-
-        return QPointF(phi2, lambda2)
-
     def moveToGeographicLocation(self, lat, lon):
         """
         Moves the map at the current zoom level to the location specified.
@@ -400,43 +440,9 @@ class MTSController():
         """
         Moves the map at the current zoom level to the location specified.
         """
-        pt = self.tileToGeographic(x, y, self.tileZoomIndex)
+        pt = tileToGeographic(x, y, self.tileZoomIndex)
         self.centreCoordinate = QPointF(pt.x(), pt.y())
         self.updateCentre(self.centreCoordinate)
-
-    def tileToGeographic(self, tx, ty, zoom):
-        """
-        :param self:
-        :param tx: floating point  x coordinate, integer part is the tile number, decimal part is the proportion across that tile
-        :param ty: floating point  y coordinate, integer part is the tile number, decimal part is the proportion across that tile
-        :param zoom:
-        :return: Latitude and longitude in degrees
-        :Note: x,y origin is bottom left, (lat, long) origin is map centre i.e. map is TL (85.05112877, -180) BR (-85.05112877, 180)
-                Uses self.zoom as the current zoom level. There are 2^(zoom+1) x tiles and 2^(zoom) y tiles
-        """
-        znx = float(1 << (zoom + 1))
-        lon = tx / znx * 360.0 - 180.0
-
-        zny = float(1 << zoom)
-        lat = ty / zny * 180.0 - 90.0
-
-        return QPointF(lat, lon)
-
-    def geographicToTile(self, latitude, longitude, zoom):
-        """
-        :param self:
-        :param latitude: world coordinates latitude (degrees)
-        :param longitude: world coordinates longitude (degrees)
-        :param zoom:
-        :return: QPointF(x,y) tile coordinates. Integer part is the tile number, decimal part is the proportion across that tile
-        :Note: x,y origin is bottom left, (lat, long) origin is map centre i.e. map is TL (85.05112877, -180) BR (-85.05112877, 180)
-            Uses self.zoom as the current zoom level. There are 2^(zoom+1) x tiles and 2^(zoom) y tiles
-        """
-        zn = float(1 << zoom)
-        tx = float(longitude + 180.0) / 360.0
-        ty = float(latitude + 90.0) / 180.0
-
-        return QPointF(tx * zn * 2, ty * zn)
 
     ''' ------------------------------------------------------------------------------------------------
                                             MOUSE/KEYBOARD FUNCTIONS
@@ -480,19 +486,19 @@ class MTSController():
                 if eventDelta > 120:
                     eventDelta = 120
                 self.view.vectorZoom *= (1 + (eventDelta / 120) * 0.01)
-                scale = 1 + (self.view.vectorZoom % floor(self.view.vectorZoom))
+                newScale = 1 + (self.view.vectorZoom % floor(self.view.vectorZoom))
 
             else:
                 if eventDelta < -120:
                     eventDelta = -120
                 self.view.vectorZoom *= (1 + (eventDelta / 120) * 0.01)
-                scale = self.view.vectorZoom % floor(self.view.vectorZoom)
+                newScale = self.view.vectorZoom % floor(self.view.vectorZoom)
 
             self.tileZoomIndex = floor(self.view.vectorZoom)
 
             if currentTileZoomIndex != floor(self.view.vectorZoom):
                 self.updateZoom()
-                self.view.annotationLayers.updateZoom(scale)
+                self.view.annotationLayers.updateZoom(newScale)
 
         self.view.update()
 

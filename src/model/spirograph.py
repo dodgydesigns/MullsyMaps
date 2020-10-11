@@ -9,7 +9,7 @@ import preferences
 SEGMENT_ANGLE = 20  # how many segments in a Spirograph
 
 
-class SpirographSegment():
+class SpirographSegment:
     def __init__(self, polygonLatLonList, segmentCentreLatLon, proxy):
 
         self.polygonLatLonList = polygonLatLonList
@@ -19,9 +19,9 @@ class SpirographSegment():
         self.proxy = proxy
 
     def fillWithColourForRatio(self, ratio):
-        '''
+        """
         Select a colour between green and red to denote the probability of detection.
-        '''
+        """
         if 0 <= ratio <= 0.25:
             rgb = (49, 173, 0)
         elif 0.25 < ratio <= 0.5:
@@ -39,8 +39,10 @@ class SpirographSegment():
             QBrush(QColor(self.soundSpeedColour[0], self.soundSpeedColour[1], self.soundSpeedColour[2])))
 
 
-class Spirograph():
-    ''' This class encompasses all the segments that make up the probability of detection circle. '''
+class Spirograph:
+    """
+    This class encompasses all the segments that make up the probability of detection circle.
+    """
 
     def __init__(self, view, centreLatLon, rangeOfTheDayRadiusLatLon, multiplier):
 
@@ -51,13 +53,14 @@ class Spirograph():
         self.multiplier = multiplier
         self.spiroSegmentList = []
         self.zoomIndex = 1
-
         self.maxDepth = 155
+        self.spiroSegmentGraphicsGroup = QGraphicsItemGroup()
+        self.rangeOfTheDayRadiusXY = 0
+        self.newCentreXY = 0
 
     def drawSpiroPolygons(self):
-        ''' Draws the outline of each segment required to create a Spirograph. '''
+        """ Draws the outline of each segment required to create a Spirograph. """
 
-        self.spiroSegmentGraphicsGroup = QGraphicsItemGroup(view=self.view)
         self.spiroSegmentGraphicsGroup.setZValue(preferences.ZVALUE_MetaDialogs + 1)
         self.view.scene.addItem(self.spiroSegmentGraphicsGroup)
 
@@ -157,12 +160,7 @@ class Spirograph():
             self.spiroSegmentGraphicsGroup.addToGroup(polygon)
 
     def clearSpiroPolygons(self):
-        ''' Make every segment in a Spirograph transparent so it can be redrawn and re-coloured. '''
+        """ Make every segment in a Spirograph transparent so it can be redrawn and re-coloured. """
         for segment in self.spiroSegmentList:
             segment.soundSpeed = 0
             segment.proxy.setBrush(QBrush(Qt.transparent))
-
-    def updatePosition(self):
-        ''' Ensure spiros move with map. '''
-        self.clearProbDetectionCircles()
-        self.addProbOfDetectionBoundaries()

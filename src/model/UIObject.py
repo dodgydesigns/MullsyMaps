@@ -15,7 +15,7 @@ class UIObject(QObject):
         """
         super(UIObject, self).__init__()
         self.map = map
-        self.icon = QGraphicsSvgItem(str(MilStdIcon(affiliation, classification).getIconPath()), parent = None)
+        self.icon = QGraphicsSvgItem(str(MilStdIcon(affiliation, classification).getIconPath()))
         self.decorators = {}
         self.designation = designation
         self.affiliation = affiliation

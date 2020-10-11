@@ -11,14 +11,30 @@ import preferences
 import xml.etree.ElementTree as ET
 
 
-class SoundSpeedLayer():
-    '''
+def getColourForRatio(ratio):
+    """
+    Select a colour between green and red to denote the probability of detection.
+    """
+    if 0 < ratio <= 0.25:
+        rgb = (49, 173, 0)
+    elif 0.25 < ratio <= 0.5:
+        rgb = (232, 228, 13)
+    elif 0.5 < ratio <= 0.75:
+        rgb = (232, 228, 13)
+    else:
+        rgb = (232, 11, 11)
 
-    '''
+    return rgb
+
+
+class SoundSpeedLayer:
+    """
+
+    """
     def __init__(self, view):
-        '''
+        """
         Constructor
-        '''
+        """
         self.view = view
         self.tileCount = 5
 
@@ -47,8 +63,7 @@ class SoundSpeedLayer():
         self.signLon = self.lonMax/abs(self.startLon)
                    
     def getMaxDepth(self):
-        ''' Use the getDepth() function to determine the maximum depth of a location. '''
-        lat, lon = self.startLat, self.startLon        
+        """ Use the getDepth() function to determine the maximum depth of a location. """
         dataList = []
         
         for lat in numpy.arange(abs(self.startLat), abs(self.endLat), self.dLat):
@@ -64,10 +79,10 @@ class SoundSpeedLayer():
         return maxDepth
         
     def getDepth(self, x, y):
-        ''' 
+        """
         Get the maximum depth of a location. This is used to set the limit the depth
         the user can enter and build the ratio for probability of detection.
-        '''
+        """
         depth = 1
         xmlRequest = 'http://{}:{}/ncWMS2/wms?'.format(preferences.GEOSERVER_IP, preferences.GEOSERVER_PORT) + \
                      'LAYERS=003/max_depth&' + \
@@ -94,15 +109,14 @@ class SoundSpeedLayer():
                 
             depth = float(tree.findall("./Feature/FeatureInfo/value")[0].text)
         except:
-#             print(xmlRequest)
             pass
         return depth
  
     def getSoundSpeedForPoint(self, x, y):
-        
-        '''
+
+        """
         Get the probability of detection based on the current depth for a certain location.
-        '''
+        """
         speed = 1
         xmlRequest = 'http://{}:{}/ncWMS2/wms?'.format(preferences.GEOSERVER_IP, preferences.GEOSERVER_PORT) + \
                      'LAYERS=003/soundspeed&' + \
@@ -127,12 +141,11 @@ class SoundSpeedLayer():
             tree = ET.fromstring(url.read())
             speed = float(tree.findall("./Feature/FeatureInfo/value")[0].text)
         except:
-#             print(xmlRequest)
             pass
         return speed
  
     def updateDepth(self, depthChange):
-        ''' Get the probability of detection based on an increase or decrease of depth. '''
+        """ Get the probability of detection based on an increase or decrease of depth. """
         if self.depth == 0:
             self.depth = self.maxDepth / 2
         else:    
@@ -145,7 +158,7 @@ class SoundSpeedLayer():
         self.getSoundSpeedData()
 
     def updateDepthByValue(self, depth):
-        ''' Get the probability of detection based on a depth entered in the depth text box. '''
+        """ Get the probability of detection based on a depth entered in the depth text box. """
 
         if (self.depth + (self.getMaxDepth() / 10)) <= self.maxDepth and \
            (self.depth - (self.getMaxDepth() / 10)) >= 0:
@@ -154,8 +167,7 @@ class SoundSpeedLayer():
         self.getSoundSpeedData()
         
     def getSoundSpeedData(self):
-        ''' Get the probability of detection (sound speed atm) based on lat/lon and depth. '''
-        lat, lon = self.startLat, self.startLon
+        """ Get the probability of detection (sound speed atm) based on lat/lon and depth. """
         for lat in numpy.arange(abs(self.startLat), abs(self.endLat), self.dLat):
             for lon in numpy.arange(abs(self.startLon), abs(self.endLon), self.dLon):
                 xy = self.view.mapController.toCanvasCoordinates(self.signLat*lat, self.signLon*lon)
@@ -164,8 +176,8 @@ class SoundSpeedLayer():
                     self.dataMap[(xy.x(), xy.y())] = ss        
         
     def drawSoundSpeed(self):
-        ''' Fill in the circles around a ruler path based on the probability of detection. '''
-        pen=QPen(Qt.transparent, 1)
+        """ Fill in the circles around a ruler path based on the probability of detection. """
+        pen = QPen(Qt.transparent, 1)
 
         # It is possible that there is no data for a particular location/depth.
         if len(self.dataMap) > 0:
@@ -179,7 +191,7 @@ class SoundSpeedLayer():
                                             self.width/(self.tileCount/1.05),
                                             self.height/self.tileCount)
                 
-                rgb = self.getColourForRatio(markerValue)
+                rgb = getColourForRatio(markerValue)
                 brush = QBrush(QColor(rgb[0], rgb[1], rgb[2]))
                 r.setBrush(brush)
                 r.setOpacity((markerValue/2))
@@ -187,9 +199,9 @@ class SoundSpeedLayer():
                 self.graphicsGroup.addToGroup(r)
 
             self.graphicsGroup.setZValue(enums.ZVALUE_MetaDialogs-1)
-            self.effect = QGraphicsBlurEffect()
-            self.effect.setBlurRadius(50)
-            self.graphicsGroup.setGraphicsEffect(self.effect)
+            effect = QGraphicsBlurEffect()
+            effect.setBlurRadius(50)
+            self.graphicsGroup.setGraphicsEffect(effect)
             self.show()
 
         self.view.mainWindow.netDataLabel.setText('Sound Speed')
@@ -201,18 +213,3 @@ class SoundSpeedLayer():
     def hide(self):
         self.graphicsGroup.hide()
         self.visible = False
-
-    def getColourForRatio(self, ratio):
-        '''
-        Select a colour between green and red to denote the probability of detection.
-        '''
-        if 0 < ratio <= 0.25:
-            rgb = (49, 173, 0)
-        if 0.25 < ratio <= 0.5: 
-            rgb = (232, 228, 13)
-        if 0.5 < ratio <= 0.75: 
-            rgb = (232, 228, 13)
-        else:
-            rgb = (232, 11, 11)
-             
-        return rgb

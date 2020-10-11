@@ -19,6 +19,8 @@ from model.layers import TacticalLayer, AnnotationsLayer, RulerLayer, \
 from model.ownship import Ownship
 import preferences
 
+from src.gis.mts_controller import distanceBetweenTwoPoints, angleBetweenTwoPoints
+
 
 class Map(QGraphicsView):
     """
@@ -48,13 +50,14 @@ class Map(QGraphicsView):
         self.setRenderHint(QPainter.Antialiasing)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
- 
+
         self.metaDialogVisible = False
         self.contextMenuVisible = False
         self.previousItem = None
         self.currentlyDrawing = False
-       
-        self.cursorPosition = QPoint(preferences.SCREEN_RESOLUTION.width()/2, preferences.SCREEN_RESOLUTION.height()/2)
+
+        self.cursorPosition = QPoint(preferences.SCREEN_RESOLUTION.width() / 2,
+                                     preferences.SCREEN_RESOLUTION.height() / 2)
         self.vectorZoom = 1
         self.rasterZoom = 2
 
@@ -81,12 +84,14 @@ class Map(QGraphicsView):
 
         self.viewport().installEventFilter(self)
         self.update()
-        
+
         self.runCacheBuilder = False
         self.cacheBuilder()
+
+        self.demoTimer = None
         self.demoRunning = False
         self.runDemos()
- 
+
     def eventFilter(self, _, event):
         """
         This is to catch all mouse wheel events and use them only for zooming
@@ -101,26 +106,27 @@ class Map(QGraphicsView):
 
     def resize(self, width, height):
         """ If the container is resized, resize the maps. """
-        
+
         self.setGeometry(0, 0, width, height)
         self.mapController.updateCanvasSize(width, height)
         self.setSceneRect(0, 0, self.frameSize().width(), self.frameSize().height())
-        
+
     def update(self):
 
         self.updateAllGraphicsLayers()
         self.updateOwnship()
-#         self.updateSolutions()
-#         self.updateTruth()
- 
+
+    #         self.updateSolutions()
+    #         self.updateTruth()
+
     def updateOwnship(self):
-        
+
         osSpeed = 18
         osCourse = 0
-        
-        lat, lng = (preferences.SCENARIO_LAT_LNG[0], 
+
+        lat, lng = (preferences.SCENARIO_LAT_LNG[0],
                     preferences.SCENARIO_LAT_LNG[1])
-                      
+
         if not self.ownship:
             # quick access to ownship
             ownship = Ownship(self,
@@ -130,14 +136,14 @@ class Map(QGraphicsView):
                               self.mapController.toCanvasCoordinates(lat, lng).y(),
                               osSpeed,
                               osCourse)
-             
+
             self.truthEntities['OS'] = ownship
             self.tacticalLayers['Ownship'] = ownship
             self.ownship = ownship
             self.toolbox.createOwnshipMenu()
-             
+
             self.zoomOwnship()
- 
+
         # we have OS so just need to maintain its parameters
         else:
             # update model with correct position information etc.
@@ -146,88 +152,88 @@ class Map(QGraphicsView):
                                             osSpeed,
                                             osCourse)
 
-#     def updateTruth(self):
-# 
-#         # get all current entities
-#         entities = {}
-#         for entityId in self.combatSystem.getTruthEntityIds():
-#             entities[entityId] = self.combatSystem.getTruthEntity(entityId)
-# 
-#         for entity in entities.values():
-#             entityId = str(entity.getEntityId())
-# 
-#             lat, lng = Algorithms.llFromEN(entity.getEasting(), 
-#                                            entity.getNorthing(), 
-#                                            preferences.user.main.SCENARIO_LAT_LNG[0], 
-#                                            preferences.user.main.SCENARIO_LAT_LNG[1])
-#             bearing, rnge = self.combatSystem.getBR(entity.getEasting(), entity.getNorthing())
-#             classification = entity.getDescription()
-#          
-#             # entityId, timestamp, easting, northing, course, speed, depth, tonals, demon, acousticPower
-#             # This is a new entity
-#             if entityId not in self.truthEntities:
-#                 # If this is not us, add
-#                 if entity.entityId != preferences.user.vessel.VESSEL_OWNSHIP_ID:
-#                     self.truthEntities[entityId] = TruthEntity(self,
-#                                                                str(entityId),
-#                                                                self.mapController.toCanvasCoordinates(lat, lng).x(),
-#                                                                self.mapController.toCanvasCoordinates(lat, lng).y(),
-#                                                                entity.speed,
-#                                                                entity.course,
-#                                                                rnge,
-#                                                                bearing, 
-#                                                                classification)
-#    
-#             # we have a record of this entity so just need to maintain its parameters
-#             else:
-#                 # update model with correct position information etc.
-#                 self.truthEntities[entityId].update(self.mapController.toCanvasCoordinates(lat, lng).x(),
-#                                                     self.mapController.toCanvasCoordinates(lat, lng).y(),
-#                                                     entity.speed,
-#                                                     entity.course)
-    
-#     def updateSolutions(self):
-#         
-#         for contact in self.cruseData.getContacts():
-# 
-#             contactId = contact.getId()
-#             latLon = self.mapController.vincentyDirect(self.ownship.lat, 
-#                                                        self.ownship.lon, 
-#                                                        contact.getBearing(), 
-#                                                        contact.getRange())  #4572m = 5kyds            
-#             xy = self.mapController.toCanvasCoordinates(latLon.x(), latLon.y())
-#             
-#             # This is a new entity
-#             if contactId not in self.contacts:
-#                 # If this is not us, add
-#                 if contactId != preferences.user.vessel.VESSEL_OWNSHIP_ID:
-#                     self.contacts[contactId] = Entity(self,
-#                                                       'S{}'.format(contactId),
-#                                                       contact.getAffiliation(),
-#                                                       xy.x(),
-#                                                       xy.y(),
-#                                                       contact.getSpeed(),
-#                                                       contact.getCourse(),
-#                                                       contact.getRange(),
-#                                                       contact.getBearing(), 
-#                                                       contact.getClassification(),
-#                                                       30)
-#                 
-#             # we have a record of this entity so just need to maintain its parameters
-#             else:
-#                 # update model with correct position information etc.
-#                 self.contacts[contactId].update(contact.getAffiliation(),
-#                                                 xy.x(),
-#                                                 xy.y(),
-#                                                 contact.getSpeed(),
-#                                                 contact.getCourse(),
-#                                                 contact.getRange(),
-#                                                 contact.getBearing(),
-#                                                 contact.getClassification(),
-#                                                 30)
+    #     def updateTruth(self):
+    #
+    #         # get all current entities
+    #         entities = {}
+    #         for entityId in self.combatSystem.getTruthEntityIds():
+    #             entities[entityId] = self.combatSystem.getTruthEntity(entityId)
+    #
+    #         for entity in entities.values():
+    #             entityId = str(entity.getEntityId())
+    #
+    #             lat, lng = Algorithms.llFromEN(entity.getEasting(),
+    #                                            entity.getNorthing(),
+    #                                            preferences.user.main.SCENARIO_LAT_LNG[0],
+    #                                            preferences.user.main.SCENARIO_LAT_LNG[1])
+    #             bearing, rnge = self.combatSystem.getBR(entity.getEasting(), entity.getNorthing())
+    #             classification = entity.getDescription()
+    #
+    #             # entityId, timestamp, easting, northing, course, speed, depth, tonals, demon, acousticPower
+    #             # This is a new entity
+    #             if entityId not in self.truthEntities:
+    #                 # If this is not us, add
+    #                 if entity.entityId != preferences.user.vessel.VESSEL_OWNSHIP_ID:
+    #                     self.truthEntities[entityId] = TruthEntity(self,
+    #                                                                str(entityId),
+    #                                                                self.mapController.toCanvasCoordinates(lat, lng).x(),
+    #                                                                self.mapController.toCanvasCoordinates(lat, lng).y(),
+    #                                                                entity.speed,
+    #                                                                entity.course,
+    #                                                                rnge,
+    #                                                                bearing,
+    #                                                                classification)
+    #
+    #             # we have a record of this entity so just need to maintain its parameters
+    #             else:
+    #                 # update model with correct position information etc.
+    #                 self.truthEntities[entityId].update(self.mapController.toCanvasCoordinates(lat, lng).x(),
+    #                                                     self.mapController.toCanvasCoordinates(lat, lng).y(),
+    #                                                     entity.speed,
+    #                                                     entity.course)
+
+    #     def updateSolutions(self):
+    #
+    #         for contact in self.cruseData.getContacts():
+    #
+    #             contactId = contact.getId()
+    #             latLon = self.mapController.vincentyDirect(self.ownship.lat,
+    #                                                        self.ownship.lon,
+    #                                                        contact.getBearing(),
+    #                                                        contact.getRange())  #4572m = 5kyds
+    #             xy = self.mapController.toCanvasCoordinates(latLon.x(), latLon.y())
+    #
+    #             # This is a new entity
+    #             if contactId not in self.contacts:
+    #                 # If this is not us, add
+    #                 if contactId != preferences.user.vessel.VESSEL_OWNSHIP_ID:
+    #                     self.contacts[contactId] = Entity(self,
+    #                                                       'S{}'.format(contactId),
+    #                                                       contact.getAffiliation(),
+    #                                                       xy.x(),
+    #                                                       xy.y(),
+    #                                                       contact.getSpeed(),
+    #                                                       contact.getCourse(),
+    #                                                       contact.getRange(),
+    #                                                       contact.getBearing(),
+    #                                                       contact.getClassification(),
+    #                                                       30)
+    #
+    #             # we have a record of this entity so just need to maintain its parameters
+    #             else:
+    #                 # update model with correct position information etc.
+    #                 self.contacts[contactId].update(contact.getAffiliation(),
+    #                                                 xy.x(),
+    #                                                 xy.y(),
+    #                                                 contact.getSpeed(),
+    #                                                 contact.getCourse(),
+    #                                                 contact.getRange(),
+    #                                                 contact.getBearing(),
+    #                                                 contact.getClassification(),
+    #                                                 30)
 
     def updateAllGraphicsLayers(self):
-        
+
         # Don't update if we're still working
         if not self.rulerLayer.currentlyRuling and not self.mainWindow.progressUpdateThreadRunning:
             self.rulerLayer.updateLines()
@@ -237,14 +243,15 @@ class Map(QGraphicsView):
             self.annotationLayers.updatePosition()
 
         self.navChartTemplates.update()
-            
+
         # Update location of all WFS icons
         for key in self.gisLayers:
             self.gisLayers[key].update()
-            
+
     ''' ------------------------------------------------------------------------------------------------
                                             GIS FUNCTIONS
         ------------------------------------------------------------------------------------------------ '''
+
     def createGisLayers(self):
         """ Load all layer tiles and features. """
         if preferences.USE_GEOSERVER:
@@ -254,7 +261,7 @@ class Map(QGraphicsView):
             self.wfsLoader()
 
     def wfsLoader(self):
-        
+
         # wfsConnection = WFS(self)
         #
         # self.bathy['Australian Airports'] = FeatureLayer(self, wfsConnection.getAirports(), True)
@@ -279,7 +286,7 @@ class Map(QGraphicsView):
                                  layerName,
                                  settings['zlevel'],
                                  True if settings['enabled'] else False,
-                                 settings['opacity']/100)
+                                 settings['opacity'] / 100)
                 self.mapController.addLayer(workspace, layerName, layer)
                 layer.showHide('show' if settings['enabled'] == 'yes' else 'hide')
                 layer.setLayerZLevel(layer.zLevel)
@@ -292,58 +299,60 @@ class Map(QGraphicsView):
         #
         # water = MTSLayer(self, 'OSM', 'Water', 6, True, 1.0)
         # self.mapController.addLayer('bathy', 'Water', water)
-          
-#         osmLandUse = MTSLayer(self, 'OSM', 'Land_Use', 5, True, 1.0)
-#         self.mapController.addLayer('bathy', 'Land Use', osmLandUse)
-#
-#         osmNatural = MTSLayer(self, 'OSM', 'Natural Space', 4, True, 1.0)
-#         self.mapController.addLayer('bathy', 'Natural', osmNatural)
-          
-        # hillshade = MTSLayer(self, 'Land', 'SRTM30-Coloured-Hillshade', 3, True, 1.0)
-        # self.mapController.addLayer('bathy', 'Hill Shade', hillshade)
 
-        # contours = MTSLayer(self, 'Oceanographic', 'World_Bathymetric_Contours', 2, False, 1.0)
-        # self.mapController.addLayer('climate', 'Bathymetric Contours', contours)
+    #         osmLandUse = MTSLayer(self, 'OSM', 'Land_Use', 5, True, 1.0)
+    #         self.mapController.addLayer('bathy', 'Land Use', osmLandUse)
+    #
+    #         osmNatural = MTSLayer(self, 'OSM', 'Natural Space', 4, True, 1.0)
+    #         self.mapController.addLayer('bathy', 'Natural', osmNatural)
 
-        # heights = MTSLayer(self, 'Oceanographic', 'World_Bathymetric_Heightmap', 1, True, 1.0)
-        # self.mapController.addLayer('climate', 'Bathymetric Heightmap', heights)
+    # hillshade = MTSLayer(self, 'Land', 'SRTM30-Coloured-Hillshade', 3, True, 1.0)
+    # self.mapController.addLayer('bathy', 'Hill Shade', hillshade)
 
-        # chartsArray = ['AUS00111P0', 'AUS00111P1', 'AUS00112P0', 'AUS00113P0', 'AUS00114P0',
-        # 'AUS00114P1', 'AUS00116P1', 'AUS00116P2', 'AUS00116P3', 'AUS00116P4', 'AUS00116P5', 'AUS00116P6',
-        # 'AUS00116P7', 'AUS00117P0', 'AUS00755P0', 'AUS00331P0', 'AUS00331P1', 'AUS00331P2', 'AUS00331P3',
-        # 'AUS00332P0', 'AUS00745P0', 'AUS00746P0', 'AUS00752P0', 'AUS00753P0', 'AUS00754P0', 'AUS00756P0',
-        # 'AUS00757P0', 'AUS00758P0', 'AUS00759P0', 'AUS00774P0']
-#         chartsArray = ['AUS00111P0', 'AUS00111P1', 'AUS00112P0',
-#         'AUS00113P0', 'AUS00114P0', 'AUS00114P1', 'AUS00117P0']
-#         for chart in chartsArray:
-#             chartLayer = MTSLayer(self, 'Navigation', chart, 151, False, 1.0)
-#             self.mapController.addLayer('land', chart, chartLayer)
-#             chartLayer.setLayerZLevel(101)
+    # contours = MTSLayer(self, 'Oceanographic', 'World_Bathymetric_Contours', 2, False, 1.0)
+    # self.mapController.addLayer('climate', 'Bathymetric Contours', contours)
+
+    # heights = MTSLayer(self, 'Oceanographic', 'World_Bathymetric_Heightmap', 1, True, 1.0)
+    # self.mapController.addLayer('climate', 'Bathymetric Heightmap', heights)
+
+    # chartsArray = ['AUS00111P0', 'AUS00111P1', 'AUS00112P0', 'AUS00113P0', 'AUS00114P0',
+    # 'AUS00114P1', 'AUS00116P1', 'AUS00116P2', 'AUS00116P3', 'AUS00116P4', 'AUS00116P5', 'AUS00116P6',
+    # 'AUS00116P7', 'AUS00117P0', 'AUS00755P0', 'AUS00331P0', 'AUS00331P1', 'AUS00331P2', 'AUS00331P3',
+    # 'AUS00332P0', 'AUS00745P0', 'AUS00746P0', 'AUS00752P0', 'AUS00753P0', 'AUS00754P0', 'AUS00756P0',
+    # 'AUS00757P0', 'AUS00758P0', 'AUS00759P0', 'AUS00774P0']
+    #         chartsArray = ['AUS00111P0', 'AUS00111P1', 'AUS00112P0',
+    #         'AUS00113P0', 'AUS00114P0', 'AUS00114P1', 'AUS00117P0']
+    #         for chart in chartsArray:
+    #             chartLayer = MTSLayer(self, 'Navigation', chart, 151, False, 1.0)
+    #             self.mapController.addLayer('land', chart, chartLayer)
+    #             chartLayer.setLayerZLevel(101)
 
     ''' ------------------------------------------------------------------------------------------------
                                             GRAPHICS FUNCTIONS
         ------------------------------------------------------------------------------------------------ '''
+
     def setIconOpacity(self, opacity):
         for entity in self.contacts.values():
             entity.icon.setOpacity(opacity)
-            
+
     def setIconSize(self, size):
         for entity in self.contacts.values():
             entity.iconScale *= size
             entity.icon.setScale(entity.iconScale)
- 
+
     ''' ------------------------------------------------------------------------------------------------
                                             MOUSE/KEYBOARD FUNCTIONS
         ------------------------------------------------------------------------------------------------ '''
+
     def keyPressEvent(self, event):
         """
         End text entering.
         """
         self.keyPressSignal.emit(event.text())
-            
+
         if event.key() == 90:
             self.annotationLayers.zoomToLayer('Local-1')
-           
+
         self.mapController.keyPressEvent(event)
         if self.currentlyDrawing:
             self.annotationLayers.layers[self.annotationLayers.activeLayerName].keyPressEvent(event)
@@ -358,7 +367,7 @@ class Map(QGraphicsView):
         # update location label
         ll = self.mapController.toGeographicalCoordinates(event.pos().x(), event.pos().y())
         mouseLat, mouseLon = ll.x(), ll.y()
-            
+
         if self.currentlyDrawing:
             self.annotationLayers.layers[self.annotationLayers.activeLayerName].mouseMoveEvent(event)
         elif self.rulerLayer.currentlyRuling and self.rulerLayer.lineObject is not None:
@@ -366,16 +375,16 @@ class Map(QGraphicsView):
             endY = event.pos().y()
             self.rulerLayer.updateLine(endX, endY)
         elif self.ownship:
-            bearing = self.mapController.angleBetweenTwoPoints(radians(self.ownship.lat),
-                                                               radians(self.ownship.lon),
-                                                               radians(mouseLat),
-                                                               radians(mouseLon))
-            distance = self.mapController.distanceBetweenTwoPoints(self.ownship.lat,
-                                                                   self.ownship.lon,
-                                                                   mouseLat,
-                                                                   mouseLon)
+            bearing = angleBetweenTwoPoints(radians(self.ownship.lat),
+                                            radians(self.ownship.lon),
+                                            radians(mouseLat),
+                                            radians(mouseLon))
+            distance = distanceBetweenTwoPoints(self.ownship.lat,
+                                                self.ownship.lon,
+                                                mouseLat,
+                                                mouseLon)
             self.mainWindow.updateLocationLabel(mouseLat, mouseLon, bearing, distance)
-            
+
         if event.buttons() == Qt.LeftButton:
             # scroll map around
             self.mapController.moveMap(event.pos() - self.cursorPosition)
@@ -386,7 +395,7 @@ class Map(QGraphicsView):
             y = offset.y()
             self.horizontalScrollBar().setValue(x)
             self.verticalScrollBar().setValue(y)
-                 
+
         self.mapMovedSignal.emit([event])
 
     def mousePressEvent(self, event):
@@ -401,7 +410,7 @@ class Map(QGraphicsView):
             if self.rulerLayer.lineObject is not None:
                 self.rulerLayer.endLine(event.pos())
             self.rulerLayer.setStartPoint(event.pos().x(), event.pos().y())
- 
+
         if self.currentlyDrawing:
             self.annotationLayers.layers[self.annotationLayers.activeLayerName].mousePressEvent(event)
         else:
@@ -410,22 +419,22 @@ class Map(QGraphicsView):
                 self.metaDialogVisible = False
                 if self.previousItem:
                     self.previousItem.showHideMetaDialog(False)
-                
+
             if event.buttons() == Qt.LeftButton:
                 if type(clickedItem) == Feature:
                     self.metaDialogVisible = True
                     self.previousItem = clickedItem
                     clickedItem.showHideMetaDialog(True)
-                     
+
                 for entity in allEntities:
                     if clickedItem in entity.graphicsLayers[preferences.ICON].graphicObjects:
                         self.metaDialogVisible = True
                         self.previousItem = entity
                         entity.showHideMetaDialog(self.metaDialogVisible)
                         break
- 
+
                 self.leftClickSignal.emit(event)
-                 
+
             elif event.buttons() == Qt.RightButton:
                 clickedEntity = False
                 for entity in allEntities:
@@ -436,12 +445,12 @@ class Map(QGraphicsView):
                         break
                 if not clickedEntity:
                     self.rightClickSignal.emit([event, None])
-                     
+
         self.cursorPosition = event.pos()
         super().mousePressEvent(event)
-        
+
     def testUrl(self, location):
-    
+
         # CRUSE:Aust_Benthic_Substrate
         # CRUSE:World_Bathymetric_Heightmap
         wms = WebMapService('http://{}:{}/geoserver/wms'.format(preferences.GEOSERVER_IP, preferences.GEOSERVER_PORT))
@@ -454,40 +463,40 @@ class Map(QGraphicsView):
             query_layers=['CRUSE:World_Bathymetric_Heightmap'],
             info_format='application/json',
             xy=(location.x(), location.y()))
-        
+
         info = json.loads(response.read())
         depth = info['features'][0]['properties']['Elevation_relative_to_sea_level']
 
-#         response = wms.getfeatureinfo(
-#             layers=['CRUSE:Aust_Benthic_Substrate'],
-#             srs='EPSG:4326',
-#             bbox=(99.69917295458612, -55.980399892638445, 170.4556884483281, -4.318218428155205),
-#             size=(preferences.SCREEN_RESOLUTION.width(), preferences.SCREEN_RESOLUTION.height()),
-#             format='image/png',
-#             query_layers=['CRUSE:Aust_Benthic_Substrate'],
-#             info_format='application/json',
-#             xy=(location.x(), location.y()))
-#         
-#         info = json.loads(response.read())        
-#         print('{}'.format(info))
-# 
-#         response = wms.getfeatureinfo(
-#             layers=['CRUSE:WA_Landmass'],
-#             srs='EPSG:4326',
-#             bbox=(-180, -90, 180, 90),
-#             size=(preferences.SCREEN_RESOLUTION.width(), preferences.SCREEN_RESOLUTION.height()),
-#             format='image/png',
-#             query_layers=['CRUSE:WA_Landmass'],
-#             info_format='application/json',
-#             xy=(location.x(), location.y()))
-#         
-#         info = json.loads(response.read())        
-#         print('{}'.format(info))  
+        #         response = wms.getfeatureinfo(
+        #             layers=['CRUSE:Aust_Benthic_Substrate'],
+        #             srs='EPSG:4326',
+        #             bbox=(99.69917295458612, -55.980399892638445, 170.4556884483281, -4.318218428155205),
+        #             size=(preferences.SCREEN_RESOLUTION.width(), preferences.SCREEN_RESOLUTION.height()),
+        #             format='image/png',
+        #             query_layers=['CRUSE:Aust_Benthic_Substrate'],
+        #             info_format='application/json',
+        #             xy=(location.x(), location.y()))
+        #
+        #         info = json.loads(response.read())
+        #         print('{}'.format(info))
+        #
+        #         response = wms.getfeatureinfo(
+        #             layers=['CRUSE:WA_Landmass'],
+        #             srs='EPSG:4326',
+        #             bbox=(-180, -90, 180, 90),
+        #             size=(preferences.SCREEN_RESOLUTION.width(), preferences.SCREEN_RESOLUTION.height()),
+        #             format='image/png',
+        #             query_layers=['CRUSE:WA_Landmass'],
+        #             info_format='application/json',
+        #             xy=(location.x(), location.y()))
+        #
+        #         info = json.loads(response.read())
+        #         print('{}'.format(info))
 
         self.showHideMetaDialog(True, location, depth)
-    
+
     def showHideMetaDialog(self, showMetaDialog, xy, depth):
-             
+
         if showMetaDialog:
             ll = self.mapController.toGeographicalCoordinates(xy.x(), xy.y())
             text = 'X:{}, Y:{}\nLat:{:.2f}, Lon:{:.2f}\nDepth: {}m'.format(xy.x(), xy.y(), ll.x(), ll.y(), depth)
@@ -501,7 +510,7 @@ class Map(QGraphicsView):
                                         """)
             self.metaDialogProxy = self.scene.addWidget(self.metaDialog)
             self.metaDialogProxy.setZValue(preferences.ZVALUE_MetaDialogs)
-            self.metaDialogProxy.setScale(10/self.vectorZoom)
+            self.metaDialogProxy.setScale(10 / self.vectorZoom)
         else:
             self.metaDialogProxy.hide()
 
@@ -515,19 +524,20 @@ class Map(QGraphicsView):
             self.annotationLayers.layers[self.annotationLayers.activeLayerName].mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
-        
+
         # Terminate the polyline ruler tool.
         if self.rulerLayer.currentlyRuling:
             self.rulerLayer.endLine(event.pos())
             self.rulerLayer.currentlyRuling = False
             self.mainWindow.createRulerLayer('end')
-        
+
         if self.currentlyDrawing:
             self.annotationLayers.layers[self.annotationLayers.activeLayerName].mouseDoubleClickEvent(event)
-                        
+
     ''' ------------------------------------------------------------------------------------------------
                                             NAVIGATION FUNCTIONS
         ------------------------------------------------------------------------------------------------ '''
+
     def zoomOwnship(self):
         """
         Moves the canvas to be centred over OWNSHIP at a suitable zoom level.
@@ -547,7 +557,8 @@ class Map(QGraphicsView):
 
     ''' ------------------------------------------------------------------------------------------------
                                             UTILITY FUNCTIONS
-        ------------------------------------------------------------------------------------------------ '''      
+        ------------------------------------------------------------------------------------------------ '''
+
     def cacheBuilder(self):
         """ Creates all the tiles required for a specific area at all zoom levels. """
         if self.runCacheBuilder:
@@ -559,96 +570,98 @@ class Map(QGraphicsView):
                         print('{}, {} @ {}'.format(easting, northing, zoom))
                         self.mapController.tileZoomIndex = zoom
                         self.mapController.updateZoom()
-                        
+
     ''' ------------------------------------------------------------------------------------------------
                                             TEST/DEMO FUNCTIONS
-        ------------------------------------------------------------------------------------------------ '''      
+        ------------------------------------------------------------------------------------------------ '''
+
     def runDemos(self):
-        
+
         if not self.demoRunning:
-            self.timer = QTimer()
-            self.timer.start(2000)
-    
-#             self.timer.timeout.connect(lambda: self.drawRandomThreatArc(False))
-#             self.timer.timeout.connect(lambda: self.createContacts())
-        
+            self.demoTimer = QTimer()
+            self.demoTimer.start(2000)
+
+        #             self.demoTimer.timeout.connect(lambda: self.drawRandomThreatArc(False))
+        #             self.demoTimer.timeout.connect(lambda: self.createContacts())
+
         self.demoRunning = True
-             
+
     def createContacts(self):
 
-#         self.ct1 = self.cruseData.createContact(preferences.SensorType.VIS,     # sensorType
-#                                                 45,                       # brg
-#                                                 5000,                     # rng=None
-#                                                 30,                       # cse=None
-#                                                 50,                       # spd=None
-#                                                 1,                        # brgrt=None
-#                                                 2,                        # rngrt=None
-#                                                 None                      # timestamp=None
-#                                           )
-# 
-#         self.ct2 = self.cruseData.createContact(preferences.SensorType.VIS,     # sensorType
-#                                                 55,                       # brg
-#                                                 5000,                     # rng=None
-#                                                 30,                       # cse=None
-#                                                 50,                       # spd=None
-#                                                 1,                        # brgrt=None
-#                                                 2,                        # rngrt=None
-#                                                 None                      # timestamp=None
-#                                           )
-# 
-#         self.ct3 = self.cruseData.createContact(preferences.SensorType.VIS,     # sensorType
-#                                                 35,                       # brg
-#                                                 5000,                     # rng=None
-#                                                 30,                       # cse=None
-#                                                 50,                       # spd=None
-#                                                 1,                        # brgrt=None
-#                                                 2,                        # rngrt=None
-#                                                 None                      # timestamp=None
-#                                           )
-# 
-#         self.ct4 = self.cruseData.createContact(preferences.SensorType.VIS,     # sensorType
-#                                                 45,                       # brg
-#                                                 4500,                     # rng=None
-#                                                 30,                       # cse=None
-#                                                 50,                       # spd=None
-#                                                 1,                        # brgrt=None
-#                                                 2,                        # rngrt=None
-#                                                 None                      # timestamp=None
-#                                           )
-# 
-#         self.ct5 = self.cruseData.createContact(preferences.SensorType.VIS,     # sensorType
-#                                                 45,                       # brg
-#                                                 5500,                     # rng=None
-#                                                 30,                       # cse=None
-#                                                 50,                       # spd=None
-#                                                 1,                        # brgrt=None
-#                                                 2,                        # rngrt=None
-#                                                 None                      # timestamp=None
-#                                           )
-#         self.ct1._contactId = 1
-#         self.ct1.affiliation = preferences.ThreatType.Hostile
-#         self.ct2._contactId = 2
-#         self.ct2.affiliation = preferences.ThreatType.Hostile
-#         self.ct3._contactId = 3
-#         self.ct3.affiliation = preferences.ThreatType.Hostile
-#         self.ct4._contactId = 4
-#         self.ct4.affiliation = preferences.ThreatType.Hostile
-#         self.ct5._contactId = 5
-#         self.ct5.affiliation = preferences.ThreatType.Hostile
-#         # contactId, time, brg, rng, cse, spd, des, cls, afl, col, master, priority, dropped, par
-        self.timer.stop()
+        #         self.ct1 = self.cruseData.createContact(preferences.SensorType.VIS,     # sensorType
+        #                                                 45,                       # brg
+        #                                                 5000,                     # rng=None
+        #                                                 30,                       # cse=None
+        #                                                 50,                       # spd=None
+        #                                                 1,                        # brgrt=None
+        #                                                 2,                        # rngrt=None
+        #                                                 None                      # timestamp=None
+        #                                           )
+        #
+        #         self.ct2 = self.cruseData.createContact(preferences.SensorType.VIS,     # sensorType
+        #                                                 55,                       # brg
+        #                                                 5000,                     # rng=None
+        #                                                 30,                       # cse=None
+        #                                                 50,                       # spd=None
+        #                                                 1,                        # brgrt=None
+        #                                                 2,                        # rngrt=None
+        #                                                 None                      # timestamp=None
+        #                                           )
+        #
+        #         self.ct3 = self.cruseData.createContact(preferences.SensorType.VIS,     # sensorType
+        #                                                 35,                       # brg
+        #                                                 5000,                     # rng=None
+        #                                                 30,                       # cse=None
+        #                                                 50,                       # spd=None
+        #                                                 1,                        # brgrt=None
+        #                                                 2,                        # rngrt=None
+        #                                                 None                      # timestamp=None
+        #                                           )
+        #
+        #         self.ct4 = self.cruseData.createContact(preferences.SensorType.VIS,     # sensorType
+        #                                                 45,                       # brg
+        #                                                 4500,                     # rng=None
+        #                                                 30,                       # cse=None
+        #                                                 50,                       # spd=None
+        #                                                 1,                        # brgrt=None
+        #                                                 2,                        # rngrt=None
+        #                                                 None                      # timestamp=None
+        #                                           )
+        #
+        #         self.ct5 = self.cruseData.createContact(preferences.SensorType.VIS,     # sensorType
+        #                                                 45,                       # brg
+        #                                                 5500,                     # rng=None
+        #                                                 30,                       # cse=None
+        #                                                 50,                       # spd=None
+        #                                                 1,                        # brgrt=None
+        #                                                 2,                        # rngrt=None
+        #                                                 None                      # timestamp=None
+        #                                           )
+        #         self.ct1._contactId = 1
+        #         self.ct1.affiliation = preferences.ThreatType.Hostile
+        #         self.ct2._contactId = 2
+        #         self.ct2.affiliation = preferences.ThreatType.Hostile
+        #         self.ct3._contactId = 3
+        #         self.ct3.affiliation = preferences.ThreatType.Hostile
+        #         self.ct4._contactId = 4
+        #         self.ct4.affiliation = preferences.ThreatType.Hostile
+        #         self.ct5._contactId = 5
+        #         self.ct5.affiliation = preferences.ThreatType.Hostile
+        #         # contactId, time, brg, rng, cse, spd, des, cls, afl, col, master, priority, dropped, par
+        self.demoTimer.stop()
 
     def updateContact(self):
         pass
-#         self.ct._classification = 'AU'
-#         '''
-#         Unknown
-#         Neutral
-#         Friendly
-#         Hostile
-#         Civilian
-#         '''
-#         self.ct._affiliation = preferences.ThreatType.Hostile
+
+    #         self.ct._classification = 'AU'
+    #         '''
+    #         Unknown
+    #         Neutral
+    #         Friendly
+    #         Hostile
+    #         Civilian
+    #         '''
+    #         self.ct._affiliation = preferences.ThreatType.Hostile
 
     def moveToRandomLocation(self):
         """
@@ -664,10 +677,10 @@ class Map(QGraphicsView):
             self.moveToGeographicLocation(-35.09138204, 138.07387413)
             print('Adelaide')
         elif r == 2:
-        # London
+            # London
             self.moveToGeographicLocation(51.5074, 0.1278)
-            print('London')       
-        
+            print('London')
+
     def drawRandomThreatArc(self, move):
         """
         Demo to test threat arc.

@@ -1,15 +1,13 @@
 import collections
-import os
 
+import preferences
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QColor, QPainter, QIcon
 from PySide2.QtWidgets import QFrame, QWidget, QSpacerItem, \
     QSizePolicy, QTabWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, \
     QSpinBox, QCheckBox, QHeaderView, QPushButton, \
     QHBoxLayout, QMainWindow, QDockWidget
-
 from graphics.paint.annotation_tool import PaintToolBox
-import preferences
 
 WIDTH = 400
 HEIGHT = 1000
@@ -104,12 +102,12 @@ class Toolbox(QWidget):
     Holder for the tabBox widget.
     """
 
-    def __init__(self, map):
+    def __init__(self, mm):
         super(Toolbox, self).__init__()
 
-        self.map = map
+        self.map = mm
         layout = QVBoxLayout()
-        self.tabBox = TabBox(self, map)
+        self.tabBox = TabBox(self, mm)
         self.tabBox.setStyleSheet('''QWidget { background: transparent; }''')
         layout.addWidget(self.tabBox)
         layout.addStretch(-1)

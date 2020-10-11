@@ -7,18 +7,17 @@ from PySide2.QtWidgets import QWidget
 
 import preferences
 
-
 TILE_DIMENSION = 256
 
 
 class TileKey:
     """ This is used for identifying the required tile and help with caching. """
+
     def __init__(self, tileZoomIndex, x, y):
-    
         self.tileZoomIndex = tileZoomIndex
         self.x = x
         self.y = y
-    
+
     def key(self):
         return '{}_{}_{}'.format(self.tileZoomIndex, self.x, self.y)
 
@@ -29,11 +28,12 @@ class TileKey:
         return (self.tileZoomIndex, self.x, self.y) == (other.tileZoomIndex, other.x, other.y)
 
     def __ne__(self, other):
-        return not(self == other)
+        return not (self == other)
 
 
 class ShowHiddenLayer(QThread):
     """ Updating the map takes a long time and blocks the GUI so put it in a separate thread. """
+
     def __init__(self):
         QThread.__init__(self)
         self.called = False
@@ -41,11 +41,11 @@ class ShowHiddenLayer(QThread):
 
     def setController(self, controller):
         self.controller = controller
-        
+
     def run(self):
         if not self.called:
             self.update()
-        
+
     def update(self):
         self.controller.update()
         self.called = True
@@ -56,14 +56,15 @@ class MTSLayer(QWidget):
     This holds all the tiles for a TMS (Tile Map Service) layer together. Each layer can then be controlled
     i.e. pan, zoom, hide via the MTSController.
     """
+
     def __init__(self, view, workspace, layerName, zLevel, visible, opacity):
         super(MTSLayer, self).__init__()
 
         self.setStyleSheet("background: transparent")
-        self.setMouseTracking(True) 
-        
+        self.setMouseTracking(True)
+
         self.drawGrid = False
-        
+
         self.view = view
         self.controller = self.view.mapController
         self.workspace = workspace
@@ -77,18 +78,18 @@ class MTSLayer(QWidget):
         self.proxyControl = self.view.scene.addRect(500, 500, 10, 10)
         self.proxyControl.setPen(QPen(Qt.transparent))
         self.handle.setParentItem(self.proxyControl)
-        
+
         self.showHiddenLayer = ShowHiddenLayer()
         self.showHiddenLayer.setController(self.controller)
-    
+
         self.painter = QPainter()
 
     def download(self):
 
         if not self.visible:
             return  # TODO: check if obscured by another higher z layer -> dont show
-        for xTile in range(self.controller.requiredTiles['left'], self.controller.requiredTiles['right']+1):
-            for yTile in range(self.controller.requiredTiles['bottom'], self.controller.requiredTiles['top']+1):
+        for xTile in range(self.controller.requiredTiles['left'], self.controller.requiredTiles['right'] + 1):
+            for yTile in range(self.controller.requiredTiles['bottom'], self.controller.requiredTiles['top'] + 1):
                 layerParameters = self.controller.layerParameters[self.workspace + ':' + self.layerName]
                 # Some layers don't have capabilities details so just use World bounds
                 if len(layerParameters) == 0:
@@ -96,7 +97,7 @@ class MTSLayer(QWidget):
                 else:
                     bounds = layerParameters[str(self.controller.tileZoomIndex)]
                 if bounds['MinTileCol'] < xTile < bounds['MaxTileCol'] and \
-                   bounds['MinTileRow'] < yTile < bounds['MaxTileRow']:
+                        bounds['MinTileRow'] < yTile < bounds['MaxTileRow']:
                     grab = TileKey(self.controller.tileZoomIndex, xTile, yTile)
                     if grab not in self.tilePixmaps:
                         if preferences.USE_GEOSERVER:
@@ -125,8 +126,8 @@ class MTSLayer(QWidget):
                                    'service/' + \
                                    'tms/' + \
                                    '1.0.0/' + \
-                                    self.workspace + ':' + \
-                                    self.layerName + \
+                                   self.workspace + ':' + \
+                                   self.layerName + \
                                    '@EPSG:4326' + \
                                    '@png' + \
                                    '/{}/{}/{}.png'.format(grab.tileZoomIndex, grab.x, grab.y)
@@ -134,7 +135,7 @@ class MTSLayer(QWidget):
                                 contents = request.urlopen(path).read()
                                 img = QImage.fromData(contents, "PNG")
                                 pic = QPixmap.fromImage(img)
-                                self.tilePixmaps[grab] = pic  
+                                self.tilePixmaps[grab] = pic
                                 if not os.path.exists(tilePath):
                                     os.makedirs(tilePath)
                                 pic.save(fullTilePath, 'png')
@@ -152,30 +153,28 @@ class MTSLayer(QWidget):
         self.painter.setOpacity(self.opacity)
         self.render()
         self.painter.end()
-        
+
     def render(self):
         """
         This takes whatever tiles are in the range of tiles for GPS coordinates and fills them IF
         the tile lies within the the canvas size.
         """
+        width = self.controller.canvasSize.width()
+        height = self.controller.canvasSize.height()
         for tileKey, pic in self.tilePixmaps.items():
-            
             # only draw if it's in the visible map
             if self.controller.requiredTiles['left'] <= tileKey.x <= self.controller.requiredTiles['right'] and \
-               self.controller.requiredTiles['bottom'] <= tileKey.y <= self.controller.requiredTiles['top']:
-                
+                    self.controller.requiredTiles['bottom'] <= tileKey.y <= self.controller.requiredTiles['top']:
                 tcX = self.controller.requiredTiles['left']
                 tcY = self.controller.requiredTiles['top']
-                offsetX = self.controller.canvasSize.width()/2 - \
-                          (self.controller.centrePoint.x() - tcX) * TILE_DIMENSION
-                offsetY = self.controller.canvasSize.height()/2 + \
-                          (self.controller.centrePoint.y() - (tcY+1)) * TILE_DIMENSION
-                        
+                offsetX = width / 2 - (self.controller.centrePoint.x() - tcX) * TILE_DIMENSION
+                offsetY = height / 2 + (self.controller.centrePoint.y() - (tcY + 1)) * TILE_DIMENSION
+
                 xPos = (tileKey.x - self.controller.requiredTiles['left']) * TILE_DIMENSION
                 yPos = (self.controller.requiredTiles['top'] - tileKey.y) * TILE_DIMENSION
                 box = QRect(xPos + offsetX, yPos + offsetY, TILE_DIMENSION, TILE_DIMENSION)
                 self.painter.drawPixmap(box, pic)
-        
+
     def showHide(self, showHide):
         """ Show or hide this layer."""
         self.visible = True if showHide == 'show' else False
@@ -184,12 +183,12 @@ class MTSLayer(QWidget):
             self.show()
         else:
             self.hide()
-            
+
     def setOpacity(self, opacity):
         """ Change the level of opacity for this layer. """
         self.opacity = opacity / 100
         self.view.scene.update()
-            
+
     def setLayerZLevel(self, zLevel):
         """ Change the z level for this layer. """
         self.zLevel = zLevel

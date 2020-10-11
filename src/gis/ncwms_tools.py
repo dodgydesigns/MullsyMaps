@@ -9,15 +9,15 @@ import xml.etree.ElementTree as ET
 soundSpeedCache = TTLCache(maxsize=1000, ttl=300)
 depthCache = TTLCache(maxsize=1000, ttl=300)
 
-class NCWMSTools():
-    '''
-    These tools are used to interrogate an ncWMS or NetCDF data source and return values that can be used, 
+class NCWMSTools:
+    """
+    These tools are used to interrogate an ncWMS or NetCDF data source and return values that can be used,
     for example, to determine the speed of sound at a specified location and depth.
-    '''
+    """
     def __init__(self, view):
-        '''
+        """
         Constructor
-        '''
+        """
         self.view = view
 
         self.maxDepth = 155
@@ -32,7 +32,7 @@ class NCWMSTools():
         self.latMin = view.mapController.toGeographicalCoordinates(canvasRect.x(), 0+canvasRect.height()).x()
         
     def getMaxDepth(self, latLonList):
-        ''' Use the getDepth() function to determine the maximum depth of a location. '''
+        """ Use the getDepth() function to determine the maximum depth of a location. """
         dataList = []
 
         for latLon in latLonList:
@@ -49,10 +49,10 @@ class NCWMSTools():
         
     @cached(depthCache)
     def getDepth(self, x, y):
-        ''' 
+        """
         Get the maximum depth of a location. This is used to set the limit the depth
         the user can enter and build the ratio for probability of detection.
-        '''
+        """
         depth = 1
         xmlRequest = 'http://{}:{}/ncWMS2/wms?'.format(preferences.GEOSERVER_IP, preferences.GEOSERVER_PORT) + \
                      'LAYERS=003/max_depth&' + \
@@ -83,10 +83,10 @@ class NCWMSTools():
  
     @cached(soundSpeedCache)
     def getSoundSpeedForPoint(self, depth, x, y):
-        
-        '''
+
+        """
         Get the probability of detection based on the current depth for a certain location.
-        '''
+        """
         speed = -1
         xmlRequest = 'http://{}:{}/ncWMS2/wms?'.format(preferences.GEOSERVER_IP, preferences.GEOSERVER_PORT) + \
                      'LAYERS=003/soundspeed&' + \
@@ -107,7 +107,6 @@ class NCWMSTools():
                      'TIME=2017-06-28T00:00:00.000Z&' + \
                      'ELEVATION={}'.format(depth)
         try:
-#             print(xmlRequest)
             url = urllib.request.urlopen(xmlRequest)
             tree = ET.fromstring(url.read())
             speed = float(tree.findall("./Feature/FeatureInfo/value")[0].text)

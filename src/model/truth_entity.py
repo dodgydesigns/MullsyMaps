@@ -8,11 +8,12 @@ from Views.COPView.src.model.UIObject import UIObject
 from Views.COPView.src.model.layers import GraphicsLayer
 import enums
 
+
 class TruthEntity(UIObject):
-    '''
-    This is a form of an entity that is only used for OSConsole to denote ground truth of the entities in 
+    """
+    This is a form of an entity that is only used for OSConsole to denote ground truth of the entities in
     the scenario.
-    '''
+    """
     def __init__(self, view, designation, x, y, speed, course, rnge, bearing, classification):
         UIObject.__init__(self, view, designation, None, classification, x, y, speed, course)
         
@@ -21,20 +22,33 @@ class TruthEntity(UIObject):
         self.range = rnge
         self.bearing = bearing
         self.iconScale = enums.ICON_SCALE
-        
-        self.graphicsLayers = {}
-        self.graphicsLayers[enums.ICON] = GraphicsLayer(view, True)
-        self.graphicsLayers[enums.ANNOTATIONS] = GraphicsLayer(view, True)
+        self.lat = 0
+        self.lon = 0
+        self.x = 0
+        self.y = 0
+        self.speed = 0
+        self.course = 0
+
+        self.graphicsLayers = {enums.ICON: GraphicsLayer(view, True),
+                               enums.ANNOTATIONS: GraphicsLayer(view, True),
+                               enums.HISTORICAL_COURSE: GraphicsLayer(view, True),
+                               enums.PREDICTED_COURSE: GraphicsLayer(view, True)}
+
         self.previousLocations = []
-        self.graphicsLayers[enums.HISTORICAL_COURSE] = GraphicsLayer(view, True)
-        self.graphicsLayers[enums.PREDICTED_COURSE] = GraphicsLayer(view, True)
-        
+
+        self.icon = None
+        self.iconCenterX = 0
+        self.iconCenterY = 0
+        self.visible = False
+        self.vectorZoom = 1
+        self.metaDialogProxy = None
+
         self.drawSpiroPolygons()
         
     def drawSpiroPolygons(self):
-        '''
+        """
         Initial creation of entity graphics. Handled by update() after this.
-        '''
+        """
         self.calculateIconCentres()
 
         self.icon = QGraphicsEllipseItem(0, 0, 100, 100)
@@ -60,17 +74,19 @@ class TruthEntity(UIObject):
         lineY = self.iconCenterY+(halfHeight*self.iconScale)
         courseLine = self.view.scene.addLine(QLineF(lineX,
                                                     lineY, 
-                                                    (lineX + sin(radians(self.course)) * self.speed * enums.PREDICTED_COURSE_SCALE),
-                                                    (lineY - cos(radians(self.course)) * self.speed * enums.PREDICTED_COURSE_SCALE)))
+                                                    (lineX + sin(radians(self.course)) * self.speed *
+                                                     enums.PREDICTED_COURSE_SCALE),
+                                                    (lineY - cos(radians(self.course)) * self.speed *
+                                                     enums.PREDICTED_COURSE_SCALE)))
         courseLine.setPen(QPen(QColor('white'), enums.CIRCLE_PEN))
         courseLine.setZValue(enums.ZVALUE_Icons-1)
         self.graphicsLayers[enums.PREDICTED_COURSE].addGraphicsObject(courseLine)
 
     def calculateIconCentres(self):
-        '''
+        """
         Qt uses the top left corner of the bounding box of graphics to position them. This works out where
         the centre is so graphics are positioned on the centre.
-        '''
+        """
         self.iconCenterX = self.x - (self.icon.boundingRect().center().x() * self.iconScale)        
         self.iconCenterY = self.y - (self.icon.boundingRect().center().y() * self.iconScale)
 
@@ -109,19 +125,19 @@ class TruthEntity(UIObject):
                                (lineX + sin(radians(self.course)) * self.speed * enums.PREDICTED_COURSE_SCALE),
                                (lineY - cos(radians(self.course)) * self.speed * enums.PREDICTED_COURSE_SCALE))
     
-    def showHideLayer(self, layerName, showHide):        
-        '''
+    def showHideLayer(self, layerName, showHide):
+        """
         Used to show/hide the entity icon and graphicsLayers separately.
-        '''
+        """
         if showHide == 'show':
             self.graphicsLayers[layerName].show()
         if showHide == 'hide':
             self.graphicsLayers[layerName].hide()
             
-    def showHideAllLayers(self):        
-        '''
+    def showHideAllLayers(self):
+        """
         Used to show/hide the entity icon and all graphicsLayers.
-        '''
+        """
         for key, grapicLayer in self.graphicsLayers.items():
             if self.visible:
                 grapicLayer.showHide('hide')
@@ -130,18 +146,19 @@ class TruthEntity(UIObject):
                 grapicLayer.showHide('show')
                 self.visible = True
 
-    def hideAllLayers(self):        
-        '''
+    def hideAllLayers(self):
+        """
         Used to show/hide the entity icon and all graphicsLayers.
-        '''
+        """
         for grapicLayer in self.graphicsLayers.values():
             grapicLayer.showHide('hide')
             self.visible = False
                
     def zoom(self):
-        '''
-        Scale the entity icon using Qt. All graphicsLayers scale automatically but hide/show graphicsLayers at certain zoom levels.
-        '''
+        """
+        Scale the entity icon using Qt. All graphicsLayers scale automatically but
+        hide/show graphicsLayers at certain zoom levels.
+        """
         if self.view.vectorZoom < 8:
             for name, layer in self.graphicsLayers.items():
                 if name != enums.ICON:
@@ -154,27 +171,28 @@ class TruthEntity(UIObject):
                         layer.showHide('show')  
     
     def showHideMetaDialog(self, showMetaDialog):
-        '''
+        """
         Shows a dialog with information about this object when it is clicked.
-        '''
+        """
         self.vectorZoom = self.view.vectorZoom
         
         if showMetaDialog:
-            self.metadata = '\n'
-            self.metadata += 'Bearing: {:.2f}°\nRange: {:.2f}Yds\nCourse: {:.2f}°\nSpeed: {:.2f}Kt\nLocation: {}\n'.format(self.bearing,
-                                                                                                                             self.range,
-                                                                                                                             self.course,
-                                                                                                                             self.speed,
-                                                                                                                             self.locationLabel())
+            metadata = '\n'
+            metadata += 'Bearing: {:.2f}°\nRange: {:.2f}Yds\nCourse: {:.2f}°\nSpeed: {:.2f}Kt\nLocation: {}\n'. \
+                format(self.bearing,
+                       self.range,
+                       self.course,
+                       self.speed,
+                       self.locationLabel())
             
             text = self.metadata.rstrip('\n')
             
-            self.metaDialog = QLabel(text)
-            self.metaDialog.move(QPoint(self.x, self.y))
-            self.metaDialog.setStyleSheet("""QLabel {color: rgb(255,255,255);
-                                                     background-color: rgba(0,0,0,50);
-                                                     padding: 5px;
-                                                     border: 1px solid white;}
+            metaDialog = QLabel(text)
+            metaDialog.move(QPoint(self.x, self.y))
+            metaDialog.setStyleSheet("""QLabel {color: rgb(255,255,255);
+                                                background-color: rgba(0,0,0,50);
+                                                padding: 5px;
+                                                border: 1px solid white;}
                                         """)     
             self.metaDialogProxy = self.view.scene.addWidget(self.metaDialog)
             self.metaDialogProxy.setZValue(enums.ZVALUE_MetaDialogs) 
@@ -182,8 +200,8 @@ class TruthEntity(UIObject):
         else:
             self.metaDialogProxy.hide()
             
-    def hideMetaDialog(self):       
-        '''
+    def hideMetaDialog(self):
+        """
         Hide the meta-data dialog when some other object is clicked.
-        '''
+        """
         pass 

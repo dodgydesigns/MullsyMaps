@@ -8,6 +8,8 @@ from PySide2.QtWidgets import QWidget, QGridLayout, QSizePolicy, QHBoxLayout, QP
 from graphics.map import Map
 import preferences
 
+from src.gis.mts_controller import distanceBetweenTwoPoints
+
 CUSTOM_STYLE = '''
 
             .QWidget {
@@ -126,16 +128,17 @@ class WindowFrame(QWidget):
     """
     The main container to hold the map.
     """
+
     def __init__(self):
         """
         Constructor
         """
         super().__init__()
-        
+
         self.map = None
         self.viewInitialise = False
         self.progressUpdateThreadRunning = False
-        
+
         self.statusValueLabel = QLabel()
         self.progressLabel = QPlainTextEdit()
         self.startRulerButton = QPushButton()
@@ -178,22 +181,22 @@ class WindowFrame(QWidget):
         menuLayout = QGridLayout()
         menuLayout.setSpacing(0)
         menuLayout.setContentsMargins(0, 0, 0, 0)
-        
+
         leftMenuWidget = QWidget()
         leftMenuLayout = QHBoxLayout()
         leftMenuLayout.setContentsMargins(0, 0, 0, 0)
         leftMenuLayout.setAlignment(Qt.AlignLeft)
         leftMenuWidget.setLayout(leftMenuLayout)
-        
+
         self.layersButton.setFixedHeight(25)
         self.layersButton.clicked.connect(self.showHideToolBox)
         leftMenuLayout.addWidget(self.layersButton)
-        
+
         zoomButton = QPushButton('ZoomOS')
         zoomButton.setFixedHeight(25)
         zoomButton.clicked.connect(self.zoomOwnship)
-        leftMenuLayout.addWidget(zoomButton)        
-                
+        leftMenuLayout.addWidget(zoomButton)
+
         rightMenuWidget = QWidget()
         rightMenuLayout = QHBoxLayout()
         rightMenuLayout.setContentsMargins(0, 0, 0, 0)
@@ -209,7 +212,7 @@ class WindowFrame(QWidget):
         rightMenuLayout.addWidget(self.latLonLabel)
         rightMenuLayout.addWidget(self.bearingLabel)
         rightMenuLayout.addWidget(self.distanceLabel)
-        
+
         messagePanelWidget = QWidget()
 
         menuLayout.addWidget(leftMenuWidget, 0, 0)
@@ -217,9 +220,9 @@ class WindowFrame(QWidget):
         menuLayout.addWidget(messagePanelWidget, 1, 0, 1, 2)
         menuWidget.setLayout(menuLayout)
         menuWidget.setStatusTip("""QWidget {background-color: black;}""")
-        
+
         return menuWidget
-    
+
     def createBottomBar(self):
         """ Bar at bottom of window. """
         bottomBarWidget = QWidget()
@@ -227,7 +230,7 @@ class WindowFrame(QWidget):
         bottomBarLayout = QGridLayout()
         bottomBarLayout.setContentsMargins(10, 0, 0, 0)
         bottomBarLayout.setAlignment(Qt.AlignLeft)
-                
+
         iconOpacitySlider = QSlider(Qt.Horizontal)
         iconOpacitySlider.setMinimum(0)
         iconOpacitySlider.setMaximum(100)
@@ -249,18 +252,18 @@ class WindowFrame(QWidget):
         self.startRulerButton.setIconSize(QSize(48, 48))
         self.startRulerButton.clicked.connect(self.createRulerLayer)
 
-        bottomBarLayout.addWidget(QLabel('Icon Opacity'),        0, 2, 1, 2)
-        bottomBarLayout.addWidget(iconOpacitySlider,             1, 2, 1, 2)
+        bottomBarLayout.addWidget(QLabel('Icon Opacity'), 0, 2, 1, 2)
+        bottomBarLayout.addWidget(iconOpacitySlider, 1, 2, 1, 2)
 
-        bottomBarLayout.addWidget(QLabel('Icon Size'),           0, 4, 1, 2)
-        bottomBarLayout.addWidget(iconSizeMinusButton,           1, 4, 1, 1)
-        bottomBarLayout.addWidget(iconSizePlusButton,            1, 5, 1, 1)
+        bottomBarLayout.addWidget(QLabel('Icon Size'), 0, 4, 1, 2)
+        bottomBarLayout.addWidget(iconSizeMinusButton, 1, 4, 1, 1)
+        bottomBarLayout.addWidget(iconSizePlusButton, 1, 5, 1, 1)
 
-        bottomBarLayout.addWidget(self.startRulerButton,         0, 6, 2, 2)
-        bottomBarLayout.addWidget(self.rulerLabel,               0, 8, 2, 1)
+        bottomBarLayout.addWidget(self.startRulerButton, 0, 6, 2, 2)
+        bottomBarLayout.addWidget(self.rulerLabel, 0, 8, 2, 1)
 
         statusLabel = QLabel('Status')
-        bottomBarLayout.addWidget(statusLabel,                   0, 20, 1, 4)
+        bottomBarLayout.addWidget(statusLabel, 0, 20, 1, 4)
         self.statusValueLabel.setStyleSheet(""" QLabel { border-style: solid;
                                                 border-color: white;
                                                 border-width: 1px;
@@ -283,44 +286,44 @@ class WindowFrame(QWidget):
         """
         if self.map.rulerLayer.ruleExists:
             self.killRuler()
-            
+
         self.map.rulerLayer.rulerEnabled = not self.map.rulerLayer.rulerEnabled
         if self.map.rulerLayer.rulerEnabled:
             self.startRulerButton.setIcon(QIcon(QPixmap(str(preferences.ICON_PATH) + 'ruler_green.svg')))
             self.map.rulerLayer.currentlyRuling = True
         else:
             self.startRulerButton.setIcon(QIcon(QPixmap(str(preferences.ICON_PATH) + 'ruler.svg')))
-            
+
         if end == 'end':
             self.startRulerButton.setIcon(QIcon(QPixmap(str(preferences.ICON_PATH) + 'ruler_red.svg')))
             self.map.rulerLayer.ruleExists = True
-            
+
     def killRuler(self):
         self.map.rulerLayer.clearRulerLines()
-            
+
         self.updateRulerLabel([])
         self.map.rulerLayer.ruleExists = False
         self.map.rulerLayer.rulerEnabled = True
-        
+
         self.map.spirographLayer.clear()
-        
+
     def updateRulerLabel(self, lines):
         """ Shows the length of the ruler path and time to navigate at current speed. """
 
         distance = 0
         for line in lines:
-            distance += self.map.mapController.distanceBetweenTwoPoints(line.startLatLon.x(),
-                                                                        line.startLatLon.y(),
-                                                                        line.endLatLon.x(),
-                                                                        line.endLatLon.y())
-        
+            distance += distanceBetweenTwoPoints(line.startLatLon.x(),
+                                                 line.startLatLon.y(),
+                                                 line.endLatLon.x(),
+                                                 line.endLatLon.y())
+
         osSpeedInMetersPerSecond = 0.514444 * self.map.ownship.speed
         distanceInMeters = distance * 0.9144
         timeInSeconds = distanceInMeters / osSpeedInMetersPerSecond
         m, s = divmod(timeInSeconds, 60)
         h, m = divmod(m, 60)
         self.rulerLabel.setText('{:.0f} yd\n{:.0f}:{:.0f}:{:.0f}'.format(distance, h, m, s))
-        
+
     def startProgressUpdateThread(self):
         """
         Starts drawing and updating the progress bar to show that something is happening.
@@ -329,7 +332,7 @@ class WindowFrame(QWidget):
             self.progressUpdateThread.tickSignal.connect(self.updateProgress)
             self.progressUpdateThread.start()
             self.progressUpdateThreadRunning = True
-        
+
     def stopProgressUpdateThread(self):
         """ Stops the progress bar when lengthy computations are complete. """
         if self.progressUpdateThreadRunning:
@@ -343,7 +346,7 @@ class WindowFrame(QWidget):
         if self.progress == '|||||||||||':
             self.progress = ''
         self.statusValueLabel.setText(self.progress)
-        
+
     def changeIconSize(self, size):
         """
         Change the size of the SVG MIL-STD icon part of a contact.
@@ -410,7 +413,7 @@ class WindowFrame(QWidget):
 class ProgressWorker(QThread):
     """ Thread to update the progress bar. """
     tickSignal = Signal()
-    
+
     def __init__(self):
         QThread.__init__(self)
 
